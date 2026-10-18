@@ -13,23 +13,20 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <title>Vocabulary Quiz Maker</title>
 <style>
-/* Layout: control rail on the left, paper-sized pages on the right; the same pages print. */
 :root{
-  --board:#1f3a34;      /* chalkboard green, header */
+  --board:#1f3a34;
   --board-ink:#eef3ef;
-  --desk:#e4e7e1;       /* background behind the paper */
+  --desk:#e4e7e1;
   --paper:#ffffff;
   --ink:#1d2b28;
   --muted:#5d6b67;
   --line:#c9cfc8;
-  --pen:#c8312b;        /* red pen for the answer key */
+  --pen:#c8312b;
   --accent:#1f6b5a;
   --accent-ink:#ffffff;
   --warn-bg:#fff4d6;
   --warn-ink:#6b4b00;
   --ui:"Segoe UI",system-ui,-apple-system,"Microsoft JhengHei",sans-serif;
-  --cjk:"Noto Sans TC","PingFang TC","Microsoft JhengHei","Heiti TC",sans-serif;
-  --latin:Georgia,"Times New Roman",serif;
 }
 *{box-sizing:border-box}
 html{color-scheme:light;-webkit-text-size-adjust:100%}
@@ -54,82 +51,52 @@ button,input,select{font:inherit;color:inherit}
 .btns{display:flex;flex-direction:column;gap:8px}
 .btn{border:1px solid var(--accent);background:#fff;color:var(--accent);border-radius:4px;padding:9px 12px;cursor:pointer;font-weight:600}
 .btn:hover{background:#eef6f2}
+.btn:disabled{opacity:.45;cursor:default}
 .btn.primary{background:var(--accent);color:var(--accent-ink)}
 .btn.primary:hover{background:#185a4b}
 .btn.pen{border-color:var(--pen);color:var(--pen)}
 .btn.pen:hover{background:#fdeeed}
 .btn:focus-visible,.tab:focus-visible,.drop:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #7fb8a8;outline-offset:1px}
-.notice{background:var(--warn-bg);color:var(--warn-ink);border-radius:4px;padding:8px 10px;font-size:13px;display:none;margin-top:8px}
+.notice{background:var(--warn-bg);color:var(--warn-ink);border-radius:4px;padding:8px 10px;font-size:13px;display:none;margin-top:8px;white-space:pre-line;word-break:break-word}
 .notice.show{display:block}
 .notice.err{background:#fdeceb;color:#7a1c17}
+.notice.ok{background:#e6f4ec;color:#14532d}
+.results{border:1px solid var(--line);border-radius:6px;padding:10px;background:#f7f9f6;display:none}
+.results.show{display:block}
+.results b{font-size:14px}
+.thumbs{display:flex;gap:8px;overflow-x:auto;padding:8px 0}
+.thumbs figure{margin:0;flex:0 0 auto;width:84px}
+.thumbs img{width:84px;height:auto;display:block;border:1px solid var(--line);background:#fff;-webkit-touch-callout:default}
+.thumbs figcaption{font-size:10px;color:var(--muted);word-break:break-all;line-height:1.2;margin-top:2px}
 .tabs{display:flex;gap:6px;margin-bottom:10px}
 .tab{border:1px solid var(--line);background:#f1f3ef;border-radius:4px 4px 0 0;padding:8px 16px;cursor:pointer;font-weight:600;color:var(--muted)}
 .tab[aria-selected=true]{background:var(--paper);color:var(--ink);border-bottom-color:var(--paper)}
 .tab.key[aria-selected=true]{color:var(--pen)}
-.stage{min-width:0;overflow-x:auto}
-
-/* The sheet: one wrapper per document, one .page per printed page */
-.sheet{display:none}
+.stage{min-width:0}
+.sheet{display:none;max-width:794px}
 .sheet.active{display:block}
-.page{background:var(--paper);width:210mm;min-height:297mm;padding:16mm 15mm;box-shadow:0 1px 3px rgba(0,0,0,.18);margin:0 0 16px 0;color:#111;display:flex;flex-direction:column;font-family:var(--cjk)}
-.page header{border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:12px}
-.page h2{margin:0;font-size:22px;display:flex;justify-content:space-between;align-items:baseline;gap:12px}
-.page h2 .stamp{font-size:13px;font-weight:700;color:var(--pen);border:1.5px solid var(--pen);padding:1px 8px;border-radius:3px;letter-spacing:.1em;white-space:nowrap}
-.meta{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:10px;font-size:14px}
-.meta span.f{display:inline-flex;align-items:flex-end;gap:4px}
-.meta i{display:inline-block;border-bottom:1px solid #111;min-width:22mm;height:1.1em}
-.inst{margin:8px 0 0;font-size:13px;color:#333}
-.items{list-style:none;margin:0;padding:0}
-.items.c2{column-count:2;column-gap:12mm}
-.items li{display:flex;align-items:baseline;gap:6px;padding:5px 0;break-inside:avoid;font-size:15px;line-height:1.55}
-.items .n{flex:0 0 2.1em;text-align:right;font-variant-numeric:tabular-nums}
-.items .zh{flex:1 1 auto;min-width:0;overflow-wrap:anywhere}
-.items .ans{flex:0 0 auto;display:inline-flex;align-items:baseline;gap:2px}
-.items .fill{display:inline-block;min-width:34mm;text-align:center;border-bottom:1px solid #111;font-family:var(--latin);font-size:16px;line-height:1.35;padding:0 4px}
-.items.c2 .fill{min-width:27mm}
-.key .fill{color:var(--pen);font-weight:700;font-style:italic}
-.foot{margin-top:auto;padding-top:12px;text-align:center;font-size:12px;color:#555;font-family:var(--ui)}
-
+.sheet canvas{display:block;width:100%;height:auto;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.18);margin:0 0 14px}
 @media (max-width:860px){
   .app{grid-template-columns:minmax(0,1fr);padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
-  .field input[type=text],.field input[type=number],.field select{font-size:16px}  /* stops iOS zooming on focus */
+  .field input[type=text],.field input[type=number],.field select{font-size:16px}
   .btn,.tab{min-height:44px}
   .drop{padding:22px 12px}
-}
-
-@media print{
-  @page{size:A4;margin:14mm}
-  html,body{background:#fff}
-  .top,.rail,.tabs{display:none!important}
-  .app{display:block;padding:0;margin:0;max-width:none}
-  .stage{overflow:visible}
-  .sheet,.sheet.active{zoom:1!important}
-  .sheet{display:none!important}
-  .sheet.active{display:block!important}
-  body.print-q #sheet-q{display:block!important}
-  body.print-q #sheet-a{display:none!important}
-  body.print-a #sheet-a{display:block!important}
-  body.print-a #sheet-q{display:none!important}
-  .page{box-shadow:none;width:auto;min-height:0;padding:0;margin:0;break-after:page;page-break-after:always}
-  .page:last-child{break-after:auto;page-break-after:auto}
-  .page.multi{min-height:255mm}
-  .key .fill,.page h2 .stamp{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
 </style>
 </head>
 <body>
 <div class="top">
   <h1>Vocabulary Quiz Maker</h1>
-  <p>Upload a word list, shuffle the Chinese meanings, and print a quiz sheet and an answer key.</p>
+  <p>Upload a word list, shuffle the Chinese meanings, and save the quiz sheet and answer key as pictures.</p>
 </div>
 
 <div class="app">
   <aside class="rail" aria-label="Quiz settings">
     <section>
       <h2>1. Word list file</h2>
-      <div class="drop" id="drop" tabindex="0" role="button" aria-label="Choose or drop a word list file">
-        <b>Tap or click to choose a file</b>
-        <span>.xlsx or .csv, for example from the Files app (a file named .exl is also tried)</span>
+      <div class="drop" id="drop" tabindex="0" role="button" aria-label="Choose a word list file">
+        <b>Tap to choose a file</b>
+        <span>.xlsx, .exl or .csv, for example from the Files app. Words with green cells are the ones used (Excel files only)</span>
       </div>
       <input type="file" id="file" hidden>
       <p class="file-note" id="fileNote">Showing sample words. Upload your file to replace them.</p>
@@ -137,6 +104,8 @@ button,input,select{font:inherit;color:inherit}
         <label for="sheetSel">Excel sheet</label>
         <select id="sheetSel"></select>
       </div>
+      <label class="check" id="greenWrap" style="display:none;margin-top:8px"><input type="checkbox" id="greenOnly" checked> Use only green-marked words</label>
+      <p class="file-note" id="greenInfo" style="display:none"></p>
       <div class="notice" id="notice" role="status"></div>
     </section>
 
@@ -147,19 +116,24 @@ button,input,select{font:inherit;color:inherit}
           <label for="title">Quiz title</label>
           <input type="text" id="title" value="English Vocabulary Quiz">
         </div>
+        <div class="field">
+          <label for="letters">Words starting with (optional)</label>
+          <input type="text" id="letters" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Example: a   or   a,b   or   a,b,c   or   a-d">
+          <p class="file-note" id="letterInfo" style="margin:0">Leave empty to use all words.</p>
+        </div>
         <div class="row2">
           <div class="field">
             <label for="count">Questions (<span id="total">0</span> words)</label>
-            <input type="number" id="count" min="1" value="10">
+            <input type="number" id="count" min="1" value="10" inputmode="numeric">
           </div>
           <div class="field">
             <label for="perPage">Per page</label>
-            <input type="number" id="perPage" min="1" placeholder="Auto">
+            <input type="number" id="perPage" min="1" placeholder="Auto" inputmode="numeric">
           </div>
         </div>
         <div class="field">
           <label for="cols">Layout</label>
-          <select id="cols"><option value="1">1 column</option><option value="2">2 columns</option></select>
+          <select id="cols"><option value="1">1 column</option><option value="2">2 columns</option><option value="3">3 columns</option><option value="4">4 columns</option></select>
         </div>
         <p class="file-note" id="pageInfo" style="margin:0"></p>
         <label class="check"><input type="checkbox" id="meta" checked> Add Class, Name, No., Date and Score fields</label>
@@ -170,7 +144,29 @@ button,input,select{font:inherit;color:inherit}
       <button class="btn primary" id="shuffle" type="button">Shuffle again</button>
       <button class="btn" id="printQ" type="button">Print question sheet</button>
       <button class="btn pen" id="printA" type="button">Print answer key</button>
-      <p class="file-note">Print opens the print preview. On a computer choose "Save as PDF" as the destination; on iPhone use the Share button in the print preview to save a PDF or print with AirPrint. Both sheets use the same numbers, order and page breaks.</p>
+      <div class="notice" id="saveNote" role="status"></div>
+      <div class="results" id="results">
+        <b id="resultsTitle">Pictures ready</b>
+        <div class="thumbs" id="thumbs"></div>
+        <div class="btns">
+          <button class="btn primary" id="shareAgain" type="button">Save to Photos or Files</button>
+          <button class="btn" id="downloadAll" type="button">Download the picture files</button>
+        </div>
+      </div>
+      <p class="file-note">Each button makes one picture (PNG) for every page and opens the iPhone share sheet. Tap <b>Save Image</b> (goes to Photos) or <b>Save to Files</b>. To use both, run the share sheet twice. Both sheets use the same numbers, order and page breaks.</p>
+    </section>
+
+    <section>
+      <h2>3. Email</h2>
+      <p class="file-note" style="margin:0 0 8px">Makes the pictures of both sheets and opens the share sheet. Choose Gmail or Mail there.</p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="field"><label for="mailTo1">Send to 1</label><input type="text" id="mailTo1" autocomplete="off" inputmode="email" autocapitalize="off"></div>
+        <div class="field"><label for="mailTo2">Send to 2</label><input type="text" id="mailTo2" autocomplete="off" inputmode="email" autocapitalize="off"></div>
+        <div class="field"><label for="mailTo3">Send to 3 (extra, optional)</label><input type="text" id="mailTo3" autocomplete="off" inputmode="email" autocapitalize="off" placeholder="Type another address here"></div>
+        <button class="btn primary" id="sendEmail" type="button">Email question sheet and answer key</button>
+        <div class="notice" id="mailNote" role="status"></div>
+        <button class="btn" id="copyMail" type="button" style="display:none">Copy the email addresses</button>
+      </div>
     </section>
   </aside>
 
@@ -179,8 +175,8 @@ button,input,select{font:inherit;color:inherit}
       <button class="tab" role="tab" id="tabQ" aria-selected="true" type="button">Question Sheet</button>
       <button class="tab key" role="tab" id="tabA" aria-selected="false" type="button">Answer Key</button>
     </div>
-    <article class="sheet active" id="sheet-q"></article>
-    <article class="sheet key" id="sheet-a"></article>
+    <div class="sheet active" id="sheet-q"></div>
+    <div class="sheet key" id="sheet-a"></div>
   </main>
 </div>
 
@@ -189,14 +185,14 @@ button,input,select{font:inherit;color:inherit}
 'use strict';
 
 //#parse-start
-var CJK=/[㐀-鿿豈-﫿]/;
+var CJK=/[㐀-鿿豈-﫿]/;
 var LAT=/[A-Za-z]/;
 var HEADER=/^(english|word|words|vocabulary|vocab|chinese|meaning|translation|單字|字彙|英文|英文單字|英文字|中文|中文意思|意思|詞性|pos|part of speech|no\.?|編號|序號|#)$/i;
 var POS=/^(n|v|vt|vi|adj|adv|prep|conj|pron|art|aux|int|num|det)\.?$/i;
 
-// Turns rows of cells into [{en, zh}]. Works whether English and Chinese sit in
-// two columns or are written together in one cell ("I 我").
-function parseRows(aoa){
+// Turns rows of cells into [{en, zh, g}]. Works whether English and Chinese sit in
+// two columns or are written together in one cell ("I 我"). g = row is marked green.
+function parseRows(aoa,flags){
   var items=[],skipped=0,first=true;
   for(var r=0;r<aoa.length;r++){
     var cells=(aoa[r]||[]).map(function(c){return String(c==null?'':c).trim();}).filter(Boolean);
@@ -207,10 +203,10 @@ function parseRows(aoa){
     }
     var en='',zh='';
     if(cells.length===1){
-      var c=cells[0],m=c.match(/^([A-Za-z][A-Za-z0-9\s'’.\-\/()]*?)\s*[:：=\-–—,，、]?\s*([㐀-鿿豈-﫿].*)$/);
+      var c=cells[0],m=c.match(/^([A-Za-z][A-Za-z0-9\s'’.\-\/()]*?)\s*[:：=\-–—,，、]?\s*([㐀-鿿豈-﫿].*)$/);
       if(m){en=m[1].trim();zh=m[2].trim();}
       else{
-        var m2=c.match(/^([㐀-鿿豈-﫿].*?)\s*[:：=\-–—,，、]?\s*([A-Za-z][A-Za-z0-9\s'’.\-\/()]*)$/);
+        var m2=c.match(/^([㐀-鿿豈-﫿].*?)\s*[:：=\-–—,，、]?\s*([A-Za-z][A-Za-z0-9\s'’.\-\/()]*)$/);
         if(m2){zh=m2[1].trim();en=m2[2].trim();}
       }
     }else{
@@ -220,7 +216,7 @@ function parseRows(aoa){
         else if(LAT.test(cell)){ if(!en&&!POS.test(cell))en=cell; }
       }
     }
-    if(en&&zh)items.push({en:en,zh:zh});else skipped++;
+    if(en&&zh)items.push({en:en,zh:zh,g:!!(flags&&flags[r])});else skipped++;
   }
   return {items:items,skipped:skipped};
 }
@@ -243,6 +239,32 @@ function parseCSV(text){
   }
   if(cur!==''||row.length){row.push(cur);rows.push(row);}
   return rows;
+}
+
+// "a" -> words starting with A. "a,b" -> A or B. "a-d" -> A to D. "st" -> words starting with ST.
+function parseLetters(spec){
+  var t=String(spec||'').toLowerCase().replace(/\s*[-–~]\s*/g,'-'),out=[];
+  t.split(/[\s,;，；、]+/).forEach(function(tok){
+    var r=/^([a-z])-([a-z])$/.exec(tok);
+    if(r){
+      var a=r[1].charCodeAt(0),b=r[2].charCodeAt(0);
+      if(a>b){var x=a;a=b;b=x;}
+      for(var c=a;c<=b;c++)out.push(String.fromCharCode(c));
+      return;
+    }
+    tok=tok.replace(/[^a-z]/g,'');
+    if(tok)out.push(tok);
+  });
+  return out;
+}
+function startsWithAny(en,prefixes){
+  var e=String(en||'').toLowerCase().replace(/^[^a-z]+/,'');
+  return prefixes.some(function(p){return e.indexOf(p)===0;});
+}
+function filterByLetters(list,spec){
+  var p=parseLetters(spec);
+  if(!p.length)return list;
+  return list.filter(function(w){return startsWithAny(w.en,p);});
 }
 
 function shuffled(n){
@@ -283,6 +305,7 @@ function readZip(buf){
     p+=46+n+m+c;
   }
   return {
+    names:function(){return Object.keys(entries);},
     text:function(name){
       var e=entries[name];
       if(!e)return Promise.resolve(null);
@@ -317,10 +340,85 @@ function colIdx(ref){
   for(i=0;i<m[1].length;i++)n=n*26+(m[1].charAt(i).toUpperCase().charCodeAt(0)-64);
   return n-1;
 }
-function parseSheetXml(xml,sst){
-  var rows=[],rowRe=/<(?:\w+:)?row\b[^>]*?(?:\/>|>([\s\S]*?)<\/(?:\w+:)?row>)/g,rm;
+
+/* ----- green cell detection (solid green fill or green text) ----- */
+var DEF_INDEXED=['000000','FFFFFF','FF0000','00FF00','0000FF','FFFF00','FF00FF','00FFFF','000000','FFFFFF','FF0000','00FF00','0000FF','FFFF00','FF00FF','00FFFF',
+'800000','008000','000080','808000','800080','008080','C0C0C0','808080','9999FF','993366','FFFFCC','CCFFFF','660066','FF8080','0066CC','CCCCFF',
+'000080','FF00FF','FFFF00','00FFFF','800080','800000','008080','0000FF','00CCFF','CCFFFF','CCFFCC','FFFF99','99CCFF','FF99CC','CC99FF','FFCC99',
+'3366FF','33CCCC','99CC00','FFCC00','FF9900','FF6600','666699','969696','003366','339966','003300','333300','993300','993366','333399','333333'];
+function themeColors(tx){
+  var out=[];
+  if(!tx)return out;
+  var b=/<(?:\w+:)?clrScheme\b[\s\S]*?<\/(?:\w+:)?clrScheme>/.exec(tx);
+  if(!b)return out;
+  var re=/<(?:\w+:)?(srgbClr|sysClr)\b([^>]*?)\/?>/g,m;
+  while((m=re.exec(b[0]))){var a=attrs(m[2]);out.push(m[1]==='srgbClr'?(a.val||''):(a.lastClr||''));}
+  return out;
+}
+function rgbToHsl(r,g,b){
+  var max=Math.max(r,g,b),min=Math.min(r,g,b),l=(max+min)/2,d=max-min,h=0,s=0;
+  if(d===0)return [0,0,l];
+  s=l>0.5?d/(2-max-min):d/(max+min);
+  if(max===r){h=(g-b)/d;if(g<b)h+=6;}
+  else if(max===g)h=(b-r)/d+2;
+  else h=(r-g)/d+4;
+  return [h*60,s,l];
+}
+function colorIsGreen(c,theme,indexed){
+  if(!c)return false;
+  var hex='';
+  if(c.rgb)hex=c.rgb;
+  else if(c.theme!==undefined){
+    var t=parseInt(c.theme,10);
+    if(!(t>=0))return false;
+    if(t===0)t=1;else if(t===1)t=0;else if(t===2)t=3;else if(t===3)t=2;   // Excel swaps the first two pairs
+    if(t<theme.length)hex=theme[t];
+  }else if(c.indexed!==undefined){
+    var n=parseInt(c.indexed,10);
+    if(n>=0&&n<indexed.length)hex=indexed[n];
+  }
+  if(!hex||hex.length<6)return false;
+  hex=hex.slice(-6);
+  var rv=parseInt(hex.slice(0,2),16),gv=parseInt(hex.slice(2,4),16),bv=parseInt(hex.slice(4,6),16);
+  if(isNaN(rv)||isNaN(gv)||isNaN(bv))return false;
+  var hsl=rgbToHsl(rv/255,gv/255,bv/255),h=hsl[0],s=hsl[1],l=hsl[2],tint=parseFloat(c.tint);
+  if(tint){l=tint<0?l*(1+tint):l*(1-tint)+tint;}
+  return h>=70&&h<=170&&s>=0.15&&l>0.05&&l<0.97;
+}
+function firstColor(body,tag){
+  var m=new RegExp('<'+tag+'\\b([^>]*?)\\/?>').exec(body||'');
+  return m?attrs(m[1]):null;
+}
+// For every cell format (xf) in styles.xml: is it green?
+function greenStyles(sx,tx){
+  if(!sx)return [];
+  var theme=themeColors(tx),indexed=DEF_INDEXED.slice(),m,re;
+  var ic=/<indexedColors>([\s\S]*?)<\/indexedColors>/.exec(sx);
+  if(ic){re=/<rgbColor\b([^>]*?)\/?>/g;var i=0;while((m=re.exec(ic[1]))){var v=attrs(m[1]).rgb;if(v&&v.length>=6&&i<indexed.length)indexed[i]=v.slice(-6);i++;}}
+  var fonts=[],fills=[],xfs=[];
+  var fb=/<fonts\b[^>]*>([\s\S]*?)<\/fonts>/.exec(sx);
+  if(fb){re=/<font\b[^>]*?(?:\/>|>([\s\S]*?)<\/font>)/g;while((m=re.exec(fb[1])))fonts.push(firstColor(m[1],'color'));}
+  var lb=/<fills\b[^>]*>([\s\S]*?)<\/fills>/.exec(sx);
+  if(lb){
+    re=/<fill\b[^>]*?(?:\/>|>([\s\S]*?)<\/fill>)/g;
+    while((m=re.exec(lb[1]))){
+      var pf=/<patternFill\b([^>]*?)(?:\/>|>([\s\S]*?)<\/patternFill>)/.exec(m[1]||'');
+      fills.push(pf?{type:attrs(pf[1]).patternType,fg:firstColor(pf[2],'fgColor')}:{type:'',fg:null});
+    }
+  }
+  var xb=/<cellXfs\b[^>]*>([\s\S]*?)<\/cellXfs>/.exec(sx);
+  if(xb){re=/<xf\b([^>]*?)\/?>/g;while((m=re.exec(xb[1])))xfs.push(attrs(m[1]));}
+  return xfs.map(function(xf){
+    var fl=fills[parseInt(xf.fillId,10)],fo=fonts[parseInt(xf.fontId,10)];
+    if(fl&&fl.type==='solid'&&colorIsGreen(fl.fg,theme,indexed))return true;
+    return !!(fo&&colorIsGreen(fo,theme,indexed));
+  });
+}
+
+function parseSheetXml(xml,sst,green){
+  var rows=[],flags=[],rowRe=/<(?:\w+:)?row\b[^>]*?(?:\/>|>([\s\S]*?)<\/(?:\w+:)?row>)/g,rm;
   while((rm=rowRe.exec(xml))){
-    var row=[],col=-1;
+    var row=[],col=-1,rg=false;
     if(rm[1]){
       var cRe=/<(?:\w+:)?c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/(?:\w+:)?c>)/g,cm;
       while((cm=cRe.exec(rm[1]))){
@@ -334,22 +432,29 @@ function parseSheetXml(xml,sst){
             if(a.t==='s'){var ix=parseInt(val,10);val=(ix>=0&&ix<sst.length)?sst[ix]:'';}
           }
         }
-        if(col<16384){while(row.length<=col)row.push('');row[col]=val;}
+        if(col<16384){
+          while(row.length<=col)row.push('');
+          row[col]=val;
+          var si=a.s!==undefined?parseInt(a.s,10):-1;
+          if(val.trim()!==''&&si>=0&&green[si])rg=true;
+        }
       }
     }
-    rows.push(row);
+    rows.push(row);flags.push(rg);
   }
-  return rows;
+  return {rows:rows,flags:flags};
 }
-// Reads an .xlsx file (a zip of XML files) entirely in the browser. Resolves to [{name, rows}].
+// Reads an .xlsx file (a zip of XML files) entirely on the phone. Resolves to [{name, rows, green}].
 function parseXlsx(buf){
   var d=new Uint8Array(buf);
   if(d.length>=4&&d[0]===0xD0&&d[1]===0xCF&&d[2]===0x11&&d[3]===0xE0)return Promise.reject(new Error(OLD_XLS));
   var zip;
   try{zip=readZip(buf);}catch(e){return Promise.reject(new Error(NOT_XLSX));}
-  return Promise.all([zip.text('xl/workbook.xml'),zip.text('xl/_rels/workbook.xml.rels'),zip.text('xl/sharedStrings.xml')]).then(function(r){
+  var themeName=zip.names().filter(function(n){return /^xl\/theme\/[^\/]+\.xml$/.test(n);})[0];
+  return Promise.all([zip.text('xl/workbook.xml'),zip.text('xl/_rels/workbook.xml.rels'),zip.text('xl/sharedStrings.xml'),zip.text('xl/styles.xml'),themeName?zip.text(themeName):Promise.resolve(null)]).then(function(r){
     if(!r[0])throw new Error(NOT_XLSX);
-    var sst=[],m,re;
+    var sst=[],m,re,green=[];
+    try{green=greenStyles(r[3],r[4]);}catch(e){green=[];}
     if(r[2]){re=/<(?:\w+:)?si\b[^>]*?(?:\/>|>([\s\S]*?)<\/(?:\w+:)?si>)/g;while((m=re.exec(r[2])))sst.push(m[1]?textOf(m[1]):'');}
     var targets={};
     if(r[1]){
@@ -366,7 +471,9 @@ function parseXlsx(buf){
     if(!list.length)throw new Error(NOT_XLSX);
     return Promise.all(list.map(function(s,i){
       return zip.text(targets[s.rid]||('xl/worksheets/sheet'+(i+1)+'.xml')).then(function(x){
-        return x==null?null:{name:s.name,rows:parseSheetXml(x,sst)};
+        if(x==null)return null;
+        var p=parseSheetXml(x,sst,green);
+        return {name:s.name,rows:p.rows,green:p.flags};
       });
     })).then(function(all){
       var out=all.filter(Boolean);
@@ -376,6 +483,126 @@ function parseXlsx(buf){
   });
 }
 //#xlsx-end
+
+/* ---------- page drawing (the same drawing is used for the preview and the saved pictures) ---------- */
+//#draw-start
+// Units: 1 unit = 0.1 mm, A4 page = 2100 x 2970 units.
+var PW=2100,PH=2970,ML=150,MR=150,MT=140,MB=140;
+var ROWH={1:92,2:92,3:128,4:128};
+var GAP={1:0,2:120,3:80,4:60};
+var FONT_CJK='"PingFang TC","Noto Sans TC","Noto Sans CJK TC","Microsoft JhengHei","Heiti TC",sans-serif';
+var FONT_LAT='Georgia,"Times New Roman",serif';
+var FONT_UI='-apple-system,system-ui,"Segoe UI",Arial,sans-serif';
+var INK='#111',PEN='#c8312b';
+var mctx=document.createElement('canvas').getContext('2d');
+function tw(text,font){mctx.font=font;return mctx.measureText(text).width;}
+// Largest font size (<= size, >= min) at which the text fits maxW.
+function fitSize(text,style,size,maxW,min,family){
+  var w=tw(text,style+' '+size+'px '+family);
+  if(w<=maxW)return size;
+  return Math.max(min,Math.floor(size*maxW/w));
+}
+function clipText(text,font,maxW){
+  if(tw(text,font)<=maxW)return text;
+  var t=text;
+  while(t.length>1&&tw(t+'…',font)>maxW)t=t.slice(0,-1);
+  return t+'…';
+}
+function metaFields(isKey){return isKey?['Score']:['Class','Name','No.','Date','Score'];}
+function instText(isKey,startNo,count,total,multi){
+  var range=multi?('Questions '+startNo+'–'+(startNo+count-1)+' of '+total+'. '):(total+' question'+(total===1?'':'s')+'. ');
+  return range+(isKey?'Correct answers are shown in red.':'Write the English word for each Chinese meaning in the brackets.');
+}
+// Draws the page header when ctx is given. Always returns the y position under the header rule.
+function header(ctx,o){
+  var cw=PW-ML-MR,y=MT,stampW=0,stampFont='700 30px '+FONT_UI;
+  if(o.isKey)stampW=tw('ANSWER KEY',stampFont)+40;
+  var ts=fitSize(o.title,'700',62,cw-(stampW?stampW+30:0),34,FONT_CJK),base=MT+62;
+  if(ctx){
+    ctx.fillStyle=INK;ctx.textAlign='left';ctx.font='700 '+ts+'px '+FONT_CJK;ctx.fillText(o.title,ML,base);
+    if(o.isKey){
+      var sx=PW-MR-stampW;
+      ctx.strokeStyle=PEN;ctx.lineWidth=4;ctx.strokeRect(sx,base-42,stampW,56);
+      ctx.fillStyle=PEN;ctx.font=stampFont;ctx.textAlign='center';ctx.fillText('ANSWER KEY',sx+stampW/2,base-3);
+    }
+  }
+  y=base+34;
+  if(o.showMeta){
+    var fields=metaFields(o.isKey),yb=y+44,x=ML,font='400 38px '+FONT_UI,lineW=270,gap=70;
+    fields.forEach(function(f){
+      var label=f+':',lw=tw(label,font),need=lw+12+lineW;
+      if(x>ML&&x+need>PW-MR){x=ML;yb+=76;}
+      if(ctx){
+        ctx.fillStyle=INK;ctx.textAlign='left';ctx.font=font;ctx.fillText(label,x,yb);
+        ctx.strokeStyle=INK;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x+lw+12,yb+5);ctx.lineTo(x+lw+12+lineW,yb+5);ctx.stroke();
+      }
+      x+=need+gap;
+    });
+    y=yb+20;
+  }
+  var ifont='400 34px '+FONT_UI,itxt=o.inst,isz=fitSize(itxt,'400',34,cw,22,FONT_UI),iy=y+46;
+  if(ctx){ctx.fillStyle='#333';ctx.textAlign='left';ctx.font='400 '+isz+'px '+FONT_UI;ctx.fillText(itxt,ML,iy);}
+  y=iy+26;
+  if(ctx){ctx.strokeStyle=INK;ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(ML,y);ctx.lineTo(PW-MR,y);ctx.stroke();}
+  return y+3;
+}
+// Rows that fit in one column of a page, for a layout of cn columns.
+function pageCapacity(cn,showMeta){
+  var top=header(null,{title:'Title',isKey:false,showMeta:showMeta,inst:'Write the English word for each Chinese meaning in the brackets.'})+50;
+  var bottom=PH-MB-80;
+  return Math.max(1,Math.floor((bottom-top)/ROWH[cn]))*cn;
+}
+function drawRow(ctx,x,y,colW,cn,no,w,isKey){
+  var rowH=ROWH[cn];
+  ctx.fillStyle=INK;
+  if(cn<=2){
+    var fs=44,base=y+Math.round(rowH*0.7),nW=100,fillW=cn===1?340:270,br=22,groupW=fillW+br*2;
+    ctx.textAlign='right';ctx.font='400 '+fs+'px '+FONT_CJK;ctx.fillText(no+'.',x+nW-8,base);
+    var zmax=colW-nW-22-groupW-28,zs=fitSize(w.zh,'400',fs,zmax,26,FONT_CJK),zf='400 '+zs+'px '+FONT_CJK;
+    ctx.textAlign='left';ctx.font=zf;ctx.fillText(clipText(w.zh,zf,zmax),x+nW+14,base);
+    var gx=x+colW-groupW;
+    ctx.font='400 '+fs+'px '+FONT_UI;ctx.fillText('(',gx,base);ctx.fillText(')',gx+br+fillW,base);
+    drawFill(ctx,gx+br,base,fillW,w.en,isKey,46);
+  }else{
+    var fs3=40,nW3=84,b1=y+46,b2=y+rowH-22,br3=22;
+    ctx.textAlign='right';ctx.font='400 '+fs3+'px '+FONT_CJK;ctx.fillText(no+'.',x+nW3-8,b1);
+    var zm=colW-nW3-14,z3=fitSize(w.zh,'400',fs3,zm,28,FONT_CJK),f3='400 '+z3+'px '+FONT_CJK;
+    ctx.textAlign='left';ctx.font=f3;ctx.fillText(clipText(w.zh,f3,zm),x+nW3+4,b1);
+    var fw=colW-nW3-br3*2;
+    ctx.font='400 '+fs3+'px '+FONT_UI;ctx.fillText('(',x+nW3,b2);ctx.fillText(')',x+nW3+br3+fw,b2);
+    drawFill(ctx,x+nW3+br3,b2,fw,w.en,isKey,44);
+  }
+}
+function drawFill(ctx,x,base,width,en,isKey,size){
+  ctx.strokeStyle=INK;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x,base+9);ctx.lineTo(x+width,base+9);ctx.stroke();
+  if(isKey){
+    var st='italic 700',s=fitSize(en,st,size,width-16,22,FONT_LAT),f=st+' '+s+'px '+FONT_LAT;
+    ctx.fillStyle=PEN;ctx.textAlign='center';ctx.font=f;ctx.fillText(clipText(en,f,width-8),x+width/2,base-2);
+    ctx.fillStyle=INK;
+  }
+}
+// o: {title,isKey,showMeta,cn,chunk,startNo,total,pageNo,pageCount}
+function renderPage(o,scale){
+  var c=document.createElement('canvas');
+  c.width=Math.round(PW*scale);c.height=Math.round(PH*scale);
+  var ctx=c.getContext('2d');
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);
+  ctx.scale(c.width/PW,c.height/PH);
+  ctx.textBaseline='alphabetic';
+  var multi=o.pageCount>1;
+  var top=header(ctx,{title:o.title,isKey:o.isKey,showMeta:o.showMeta,inst:instText(o.isKey,o.startNo,o.chunk.length,o.total,multi)})+50;
+  var cn=o.cn,gap=GAP[cn],colW=(PW-ML-MR-gap*(cn-1))/cn,per=Math.ceil(o.chunk.length/cn)||1;
+  o.chunk.forEach(function(w,i){
+    var col=i%cn,row=Math.floor(i/cn);
+    drawRow(ctx,ML+col*(colW+gap),top+row*ROWH[cn],colW,cn,o.startNo+i,w,o.isKey);
+  });
+  if(multi){
+    ctx.fillStyle='#555';ctx.textAlign='center';ctx.font='400 32px '+FONT_UI;
+    ctx.fillText('Page '+o.pageNo+' of '+o.pageCount,PW/2,PH-MB-10);
+  }
+  return c;
+}
+//#draw-end
 
 var SAMPLE=[['I','我'],['you','你'],['he','他'],['she','她'],['apple','蘋果'],['book','書'],['teacher','老師'],['student','學生'],['school','學校'],['friend','朋友']];
 var words=SAMPLE.map(function(p){return {en:p[0],zh:p[1]};});
@@ -390,10 +617,36 @@ function el(tag,cls,text){
   return e;
 }
 
-function notice(msg,isErr){
-  var n=$('notice');
+function note(id,msg,kind){
+  var n=$(id);
   n.textContent=msg||'';
-  n.className='notice'+(msg?' show':'')+(isErr?' err':'');
+  n.className='notice'+(msg?' show':'')+(kind==='err'?' err':'')+(kind==='ok'?' ok':'');
+}
+function notice(msg,isErr){note('notice',msg,isErr?'err':'');}
+
+var allItems=[],fileLabel='',hasGreen=false;
+
+// Chooses which words are in play: only the green-marked ones when the file has any
+// and the checkbox is on, otherwise every word in the file. Then the letter filter.
+function useItems(){
+  var greens=allItems.filter(function(w){return w.g;});
+  hasGreen=greens.length>0;
+  $('greenWrap').style.display=hasGreen?'flex':'none';
+  var gi=$('greenInfo');
+  if(hasGreen){
+    gi.style.display='block';
+    gi.textContent=$('greenOnly').checked
+      ?greens.length+' of '+allItems.length+' words are marked green and will be used.'
+      :'Green marks are ignored. All '+allItems.length+' words will be used.';
+  }else{gi.style.display='none';}
+  var base=(hasGreen&&$('greenOnly').checked)?greens:allItems;
+  var spec=$('letters').value,list=filterByLetters(base,spec),li=$('letterInfo'),on=parseLetters(spec).length>0;
+  if(!on){li.textContent='Leave empty to use all words.';li.style.color='';}
+  else if(!list.length){li.textContent='No words start with "'+spec.trim()+'". Try other letters.';li.style.color='var(--pen)';}
+  else{li.textContent=list.length+' of '+base.length+' words start with '+parseLetters(spec).map(function(x){return x.toUpperCase();}).join(', ')+'.';li.style.color='';}
+  setWords(list,fileLabel);
+  var none=!list.length;
+  ['printQ','printA','sendEmail','shuffle'].forEach(function(id){$(id).disabled=none;});
 }
 
 function setWords(list,label){
@@ -413,79 +666,60 @@ function picked(){
   return order.slice(0,n).map(function(i){return words[i];});
 }
 
-function buildSheet(root,pages,total,isKey){
-  root.textContent='';
-  var title=$('title').value.trim()||'English Vocabulary Quiz';
-  var multi=pages.length>1;
-  var done=0;
-  pages.forEach(function(chunk,pi){
-    var pg=el('section','page'+(multi?' multi':''));
-    var head=el('header');
-    var h2=el('h2');
-    h2.appendChild(el('span',null,title));
-    if(isKey)h2.appendChild(el('span','stamp','ANSWER KEY'));
-    head.appendChild(h2);
-    if($('meta').checked){
-      var meta=el('div','meta');
-      var fields=isKey?['Score']:['Class','Name','No.','Date','Score'];
-      fields.forEach(function(f){
-        var s=el('span','f');
-        s.appendChild(el('span',null,f+':'));
-        s.appendChild(el('i'));
-        meta.appendChild(s);
-      });
-      head.appendChild(meta);
-    }
-    var range=multi?('Questions '+(done+1)+'–'+(done+chunk.length)+' of '+total+'. '):(total+' question'+(total===1?'':'s')+'. ');
-    head.appendChild(el('p','inst',range+(isKey?'Correct answers are shown in red.':'Write the English word for each Chinese meaning in the brackets.')));
-    pg.appendChild(head);
+function titleText(){return $('title').value.trim()||'English Vocabulary Quiz';}
 
-    var ol=el('ol','items'+($('cols').value==='2'?' c2':''));
-    chunk.forEach(function(w,i){
-      var li=el('li');
-      li.appendChild(el('span','n',(done+i+1)+'.'));
-      li.appendChild(el('span','zh',w.zh));
-      var ans=el('span','ans');
-      ans.appendChild(document.createTextNode('('));
-      ans.appendChild(el('span','fill',isKey?w.en:''));
-      ans.appendChild(document.createTextNode(')'));
-      li.appendChild(ans);
-      ol.appendChild(li);
-    });
-    pg.appendChild(ol);
-    if(multi)pg.appendChild(el('div','foot','Page '+(pi+1)+' of '+pages.length));
-    root.appendChild(pg);
-    done+=chunk.length;
-  });
+// The page plan shared by the question sheet and the answer key.
+function plan(){
+  var list=picked(),cn=parseInt($('cols').value,10)||1,showMeta=$('meta').checked;
+  var cap=pageCapacity(cn,showMeta),per=parseInt($('perPage').value,10);
+  var eff=per>=1?Math.min(per,cap):cap;
+  return {list:list,cn:cn,showMeta:showMeta,cap:cap,clamped:per>=1&&per>cap,pages:paginate(list,eff)};
+}
+function pageOpts(P,pi,isKey,title){
+  var start=1;
+  for(var i=0;i<pi;i++)start+=P.pages[i].length;
+  return {title:title,isKey:isKey,showMeta:P.showMeta,cn:P.cn,chunk:P.pages[pi],startNo:start,total:P.list.length,pageNo:pi+1,pageCount:P.pages.length};
 }
 
+var activeTab='q';
+function drawPreview(){
+  var P=plan(),isKey=activeTab==='a',root=$(isKey?'sheet-a':'sheet-q'),title=titleText();
+  root.textContent='';
+  var scale=P.pages.length>12?0.4:0.55;
+  P.pages.forEach(function(_,pi){root.appendChild(renderPage(pageOpts(P,pi,isKey,title),scale));});
+  $(isKey?'sheet-q':'sheet-a').textContent='';
+  return P;
+}
+
+var renderTimer=0;
 function render(){
-  var list=picked();
-  var pages=paginate(list,parseInt($('perPage').value,10));
-  buildSheet($('sheet-q'),pages,list.length,false);
-  buildSheet($('sheet-a'),pages,list.length,true);
-  $('pageInfo').textContent=list.length+' question'+(list.length===1?'':'s')+' → '+pages.length+' page'+(pages.length===1?'':'s')+' per sheet';
-  fitPreview();
-  // Same Chinese meaning on two words makes the answer ambiguous.
-  var seen={},dup={};
-  list.forEach(function(w){ if(seen[w.zh])dup[w.zh]=1; seen[w.zh]=1; });
-  var d=Object.keys(dup);
-  if(d.length&&!$('notice').classList.contains('err')){
-    notice('Duplicate Chinese meanings: '+d.slice(0,5).join(', ')+(d.length>5?' and more':'')+'. Students may give different correct answers; consider editing the file.');
-  }
+  clearTimeout(renderTimer);
+  renderTimer=setTimeout(function(){
+    var P=drawPreview();
+    $('pageInfo').textContent=P.list.length+' question'+(P.list.length===1?'':'s')+' → '+P.pages.length+' page'+(P.pages.length===1?'':'s')+' per sheet (up to '+P.cap+' per page in this layout'+(P.clamped?'; "Per page" was lowered to fit':'')+')';
+    var seen={},dup={};
+    P.list.forEach(function(w){ if(seen[w.zh])dup[w.zh]=1; seen[w.zh]=1; });
+    var d=Object.keys(dup);
+    if(d.length&&!$('notice').classList.contains('err')){
+      notice('Duplicate Chinese meanings: '+d.slice(0,5).join(', ')+(d.length>5?' and more':'')+'. Students may give different correct answers; consider editing the file.');
+    }
+  },60);
 }
 
 function showTab(which){
+  activeTab=which;
   var q=which==='q';
   $('tabQ').setAttribute('aria-selected',q);
   $('tabA').setAttribute('aria-selected',!q);
   $('sheet-q').classList.toggle('active',q);
   $('sheet-a').classList.toggle('active',!q);
-  fitPreview();
+  render();
 }
 
+var fromExcel=false;
 function loadSheet(i){
-  applyParsed(parseRows(sheets[i].rows),$('fileNote').dataset.name||'');
+  fromExcel=true;
+  applyParsed(parseRows(sheets[i].rows,sheets[i].green),$('fileNote').dataset.name||'');
 }
 
 function applyParsed(res,fileName){
@@ -496,7 +730,10 @@ function applyParsed(res,fileName){
   }
   var label='Loaded "'+fileName+'": '+res.items.length+' words';
   if(res.skipped)label+=' (skipped '+res.skipped+' row'+(res.skipped===1?'':'s')+' missing English or Chinese)';
-  setWords(res.items,label);
+  allItems=res.items;
+  fileLabel=label;
+  useItems();
+  if(!hasGreen&&fromExcel)notice('No green-marked words were found, so all '+res.items.length+' words are used. To choose words, color their cells green in Excel and open the file again.');
 }
 
 var READ_FAIL=NOT_XLSX;
@@ -516,6 +753,7 @@ function readFile(file){
         var text;
         try{text=new TextDecoder('utf-8',{fatal:true}).decode(buf);}
         catch(e){text=new TextDecoder('big5').decode(buf);}   // CSV saved by Excel on Traditional Chinese Windows is Big5
+        fromExcel=false;
         applyParsed(parseRows(parseCSV(text)),file.name);
         return;
       }
@@ -537,12 +775,154 @@ function readFile(file){
   fr.readAsArrayBuffer(file);
 }
 
-function doPrint(which){
-  document.body.classList.remove('print-q','print-a');
-  document.body.classList.add('print-'+which);
-  window.print();
+/* ---------- picture files ---------- */
+function pad2(n){return (n<10?'0':'')+n;}
+// File names start with the quiz title, then the date and time: Title_2026-10-18_08-11
+function fileBase(title,d){
+  var t=String(title||'').replace(/[\\\/:*?"<>|]+/g,' ').trim().replace(/\s+/g,'_').replace(/^[_.]+|[_.]+$/g,'').slice(0,60)||'Vocabulary_Quiz';
+  return t+'_'+d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())+'_'+pad2(d.getHours())+'-'+pad2(d.getMinutes());
 }
-window.addEventListener('afterprint',function(){document.body.classList.remove('print-q','print-a');});
+var EXPORT_SCALE=1654/PW;   // A4 at 200 dpi
+
+// Makes one PNG File per page, one page at a time so the phone never holds many large pictures.
+function makeImages(which,base){
+  var P=plan(),isKey=which==='a',title=titleText(),files=[],i=0,multi=P.pages.length>1;
+  var suffix=isKey?'_Answer_Key':'_Question_Sheet';
+  function next(){
+    if(i>=P.pages.length)return Promise.resolve(files);
+    var c=renderPage(pageOpts(P,i,isKey,title),EXPORT_SCALE);
+    return new Promise(function(res,rej){
+      c.toBlob(function(b){c.width=1;c.height=1;if(b)res(b);else rej(new Error('Could not make the picture.'));},'image/png');
+    }).then(function(b){
+      var name=base+suffix+(multi?'_Page_'+(i+1)+'_of_'+P.pages.length:'')+'.png';
+      files.push(new File([b],name,{type:'image/png'}));
+      i++;
+      return next();
+    });
+  }
+  return next();
+}
+
+var current=[],thumbUrls=[];
+function showResults(files,heading){
+  thumbUrls.forEach(function(u){URL.revokeObjectURL(u);});
+  thumbUrls=[];
+  current=files;
+  var box=$('thumbs');
+  box.textContent='';
+  files.forEach(function(f){
+    var u=URL.createObjectURL(f);thumbUrls.push(u);
+    var fig=el('figure'),img=el('img');
+    img.src=u;img.alt=f.name;
+    fig.appendChild(img);fig.appendChild(el('figcaption',null,f.name));
+    box.appendChild(fig);
+  });
+  $('resultsTitle').textContent=heading||('Pictures ready ('+files.length+')');
+  $('results').classList.add('show');
+}
+function canShareFiles(files){
+  try{return !!(navigator.share&&navigator.canShare&&navigator.canShare({files:files}));}catch(e){return false;}
+}
+function downloadFiles(files){
+  files.forEach(function(f,i){
+    setTimeout(function(){
+      var u=URL.createObjectURL(f),a=document.createElement('a');
+      a.href=u;a.download=f.name;document.body.appendChild(a);a.click();a.remove();
+      setTimeout(function(){URL.revokeObjectURL(u);},4000);
+    },i*350);
+  });
+}
+// Opens the iPhone share sheet with the picture files. Resolves 'shared', 'cancelled' or 'download'.
+function deliver(files,extra){
+  if(!canShareFiles(files)){downloadFiles(files);return Promise.resolve('download');}
+  var data={files:files};
+  if(extra){data.title=extra.title;data.text=extra.text;}
+  return navigator.share(data).then(function(){return 'shared';}).catch(function(e){
+    if(e&&e.name==='AbortError')return 'cancelled';
+    throw e;
+  });
+}
+function busy(on){['printQ','printA','sendEmail','shuffle','shareAgain','downloadAll'].forEach(function(id){$(id).disabled=on||(!words.length&&id!=='shareAgain'&&id!=='downloadAll');});}
+
+function outcome(r,files){
+  var n=files.length,list=files.length===1?'1 picture':n+' pictures';
+  if(r==='shared')return {kind:'ok',msg:'Opened the share sheet with '+list+'.\nTap "Save Image" to put them in Photos, or "Save to Files" to keep them in the Files app.'};
+  if(r==='cancelled')return {kind:'',msg:'Cancelled. Your '+list+' are ready below. Tap "Save to Photos or Files" to open the share sheet again.'};
+  return {kind:'ok',msg:list+' downloaded. On iPhone they are in the Files app, in Downloads. Press and hold a picture below to add it to Photos.'};
+}
+function shareFailed(e){
+  return {kind:'err',msg:'The share sheet could not open ('+((e&&e.message)||'unknown reason')+').\nTap "Save to Photos or Files" below, or press and hold a picture and choose "Add to Photos".'};
+}
+
+function savePictures(which){
+  var base=fileBase(titleText(),new Date());
+  busy(true);
+  note('saveNote','Making the pictures ...');
+  makeImages(which,base).then(function(files){
+    showResults(files);
+    return deliver(files).then(function(r){var o=outcome(r,files);note('saveNote',o.msg,o.kind);},function(e){var o=shareFailed(e);note('saveNote',o.msg,o.kind);});
+  }).catch(function(e){
+    note('saveNote',(e&&e.message)||'Could not make the pictures.','err');
+  }).then(function(){busy(false);});
+}
+
+/* ---------- email ---------- */
+var MAIL_DEFAULT={to1:'mavicchen168@gmail.com',to2:'mavicschool888@gmail.com',to3:''};
+var mailIds=['mailTo1','mailTo2','mailTo3'];
+function loadMail(){
+  var v={};
+  try{v=JSON.parse(localStorage.getItem('vq-mail')||'null')||{};}catch(e){v={};}
+  mailIds.forEach(function(id,i){var k='to'+(i+1);$(id).value=(v[k]!==undefined)?v[k]:MAIL_DEFAULT[k];});
+}
+function saveMail(){
+  var v={};
+  mailIds.forEach(function(id,i){v['to'+(i+1)]=$(id).value.trim();});
+  try{localStorage.setItem('vq-mail',JSON.stringify(v));}catch(e){}
+}
+mailIds.forEach(function(id){$(id).addEventListener('input',saveMail);});
+loadMail();
+var EMAIL_RE=/^[A-Za-z0-9._%+\-']+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$/;
+var mailTo=[];
+$('sendEmail').addEventListener('click',function(){
+  var to=mailIds.map(function(id){return $(id).value.trim();}).filter(Boolean),bad=to.filter(function(a){return !EMAIL_RE.test(a);});
+  if(!to.length){note('mailNote','Enter at least one email address.','err');return;}
+  if(bad.length){note('mailNote','This email address looks wrong: '+bad[0],'err');return;}
+  mailTo=to;
+  var d=new Date(),title=titleText(),base=fileBase(title,d);
+  var when=d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())+' '+pad2(d.getHours())+':'+pad2(d.getMinutes());
+  var P=plan();
+  var subject=title+' '+when+' - Question Sheet and Answer Key';
+  var body='Hello,\n\nHere are the question sheet and the answer key for "'+title+'".\nQuestions: '+P.list.length+'\nPages per sheet: '+P.pages.length+'\n\nSent from Vocabulary Quiz Maker';
+  busy(true);note('mailNote','Making the pictures ...');
+  makeImages('q',base).then(function(q){
+    return makeImages('a',base).then(function(a){return q.concat(a);});
+  }).then(function(files){
+    showResults(files,'Email pictures ready ('+files.length+')');
+    $('copyMail').style.display='block';
+    var hint='\nIn the share sheet choose Gmail or Mail. Then type or paste these addresses: '+to.join(', ');
+    return deliver(files,{title:subject,text:body}).then(function(r){
+      var o=outcome(r,files);
+      if(r==='shared')o.msg='Opened the share sheet with the question sheet and answer key.'+hint;
+      else if(r==='cancelled')o.msg='Cancelled. Tap "Save to Photos or Files" below to open the share sheet again, then choose Gmail or Mail.';
+      note('mailNote',o.msg,o.kind);
+    },function(e){var o=shareFailed(e);note('mailNote',o.msg,o.kind);});
+  }).catch(function(e){
+    note('mailNote',(e&&e.message)||'Could not prepare the email.','err');
+  }).then(function(){busy(false);});
+});
+$('copyMail').addEventListener('click',function(){
+  var txt=mailTo.join(', '),b=this;
+  function ok(){b.textContent='Copied';setTimeout(function(){b.textContent='Copy the email addresses';},1800);}
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(ok,function(){note('mailNote','Could not copy. The addresses are: '+txt);});
+  else note('mailNote','The addresses are: '+txt);
+});
+
+$('shareAgain').addEventListener('click',function(){
+  if(!current.length)return;
+  // Called straight from the tap, so the share sheet is allowed to open.
+  deliver(current).then(function(r){var o=outcome(r,current);note('saveNote',o.msg,o.kind);},function(e){var o=shareFailed(e);note('saveNote',o.msg,o.kind);});
+});
+$('downloadAll').addEventListener('click',function(){if(current.length)downloadFiles(current);});
 
 // wiring
 var drop=$('drop'),fileIn=$('file');
@@ -552,33 +932,29 @@ fileIn.addEventListener('change',function(){readFile(fileIn.files[0]);fileIn.val
 ['dragenter','dragover'].forEach(function(t){drop.addEventListener(t,function(e){e.preventDefault();drop.classList.add('over');});});
 ['dragleave','drop'].forEach(function(t){drop.addEventListener(t,function(e){e.preventDefault();drop.classList.remove('over');});});
 drop.addEventListener('drop',function(e){readFile(e.dataTransfer.files[0]);});
+$('greenOnly').addEventListener('change',function(){notice('');useItems();});
 $('sheetSel').addEventListener('change',function(){loadSheet(parseInt(this.value,10));});
 $('shuffle').addEventListener('click',function(){order=shuffled(words.length);render();});
-$('printQ').addEventListener('click',function(){showTab('q');doPrint('q');});
-$('printA').addEventListener('click',function(){showTab('a');doPrint('a');});
+$('printQ').addEventListener('click',function(){showTab('q');savePictures('q');});
+$('printA').addEventListener('click',function(){showTab('a');savePictures('a');});
 $('tabQ').addEventListener('click',function(){showTab('q');});
 $('tabA').addEventListener('click',function(){showTab('a');});
+$('letters').addEventListener('input',function(){useItems();});
 ['title','count','perPage','cols','meta'].forEach(function(id){
   $(id).addEventListener('input',function(){ if(!$('notice').classList.contains('err'))notice(''); render(); });
   $(id).addEventListener('change',render);
 });
 
-setWords(words,'Showing sample words. Upload your file to replace them.');
-
-// Shrink the A4 preview to fit a narrow screen (printing always uses full size).
-function fitPreview(){
-  var st=$('stage');
-  if(!st||!st.clientWidth)return;
-  var s=Math.min(1,(st.clientWidth-2)/794);
-  ['sheet-q','sheet-a'].forEach(function(id){$(id).style.zoom=s<1?String(s):'';});
-}
-window.addEventListener('resize',fitPreview);
-fitPreview();
+allItems=words.slice();
+fileLabel='Showing sample words. Upload your file to replace them.';
+useItems();
 
 // Offline support once the page has been opened from a web address.
 if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){
   window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});
 }
+// test hook (harmless in normal use)
+window.__vq={parseXlsx:parseXlsx,parseRows:parseRows,renderPage:renderPage,plan:plan};
 })();
 </script>
 </body>
