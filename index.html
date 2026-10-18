@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Vocab Quiz">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1f3a34">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<title>Vocabulary Quiz Maker</title>
+<style>
+/* Layout: control rail on the left, paper-sized pages on the right; the same pages print. */
+:root{
+  --board:#1f3a34;      /* chalkboard green, header */
+  --board-ink:#eef3ef;
+  --desk:#e4e7e1;       /* background behind the paper */
+  --paper:#ffffff;
+  --ink:#1d2b28;
+  --muted:#5d6b67;
+  --line:#c9cfc8;
+  --pen:#c8312b;        /* red pen for the answer key */
+  --accent:#1f6b5a;
+  --accent-ink:#ffffff;
+  --warn-bg:#fff4d6;
+  --warn-ink:#6b4b00;
+  --ui:"Segoe UI",system-ui,-apple-system,"Microsoft JhengHei",sans-serif;
+  --cjk:"Noto Sans TC","PingFang TC","Microsoft JhengHei","Heiti TC",sans-serif;
+  --latin:Georgia,"Times New Roman",serif;
+}
+*{box-sizing:border-box}
+html{color-scheme:light;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--desk);color:var(--ink);font:15px/1.5 var(--ui)}
+button,input,select{font:inherit;color:inherit}
+.top{background:var(--board);color:var(--board-ink);padding:calc(14px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 14px max(16px,env(safe-area-inset-left,0px))}
+.top h1{margin:0;font-size:20px;letter-spacing:.02em}
+.top p{margin:2px 0 0;font-size:13px;opacity:.8}
+.app{display:grid;grid-template-columns:320px minmax(0,1fr);gap:20px;padding:20px max(16px,env(safe-area-inset-left,0px));max-width:1200px;margin:0 auto;align-items:start}
+.rail{display:flex;flex-direction:column;gap:14px;background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:16px;min-width:0}
+.rail h2{margin:0 0 6px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.drop{border:2px dashed var(--line);border-radius:6px;padding:16px 12px;text-align:center;cursor:pointer;background:#f7f9f6;transition:border-color .15s,background .15s}
+.drop.over,.drop:hover{border-color:var(--accent);background:#eef6f2}
+.drop b{display:block;font-size:15px}
+.drop span{font-size:12px;color:var(--muted)}
+.file-note{font-size:13px;color:var(--muted);margin:6px 0 0;word-break:break-word}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:13px;color:var(--muted)}
+.field input[type=text],.field input[type=number],.field select{border:1px solid var(--line);border-radius:4px;padding:7px 9px;background:#fff;min-width:0;width:100%}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.check{display:flex;gap:8px;align-items:center;font-size:14px}
+.btns{display:flex;flex-direction:column;gap:8px}
+.btn{border:1px solid var(--accent);background:#fff;color:var(--accent);border-radius:4px;padding:9px 12px;cursor:pointer;font-weight:600}
+.btn:hover{background:#eef6f2}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{background:#185a4b}
+.btn.pen{border-color:var(--pen);color:var(--pen)}
+.btn.pen:hover{background:#fdeeed}
+.btn:focus-visible,.tab:focus-visible,.drop:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #7fb8a8;outline-offset:1px}
+.notice{background:var(--warn-bg);color:var(--warn-ink);border-radius:4px;padding:8px 10px;font-size:13px;display:none;margin-top:8px}
+.notice.show{display:block}
+.notice.err{background:#fdeceb;color:#7a1c17}
+.tabs{display:flex;gap:6px;margin-bottom:10px}
+.tab{border:1px solid var(--line);background:#f1f3ef;border-radius:4px 4px 0 0;padding:8px 16px;cursor:pointer;font-weight:600;color:var(--muted)}
+.tab[aria-selected=true]{background:var(--paper);color:var(--ink);border-bottom-color:var(--paper)}
+.tab.key[aria-selected=true]{color:var(--pen)}
+.stage{min-width:0;overflow-x:auto}
+
+/* The sheet: one wrapper per document, one .page per printed page */
+.sheet{display:none}
+.sheet.active{display:block}
+.page{background:var(--paper);width:210mm;min-height:297mm;padding:16mm 15mm;box-shadow:0 1px 3px rgba(0,0,0,.18);margin:0 0 16px 0;color:#111;display:flex;flex-direction:column;font-family:var(--cjk)}
+.page header{border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:12px}
+.page h2{margin:0;font-size:22px;display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.page h2 .stamp{font-size:13px;font-weight:700;color:var(--pen);border:1.5px solid var(--pen);padding:1px 8px;border-radius:3px;letter-spacing:.1em;white-space:nowrap}
+.meta{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:10px;font-size:14px}
+.meta span.f{display:inline-flex;align-items:flex-end;gap:4px}
+.meta i{display:inline-block;border-bottom:1px solid #111;min-width:22mm;height:1.1em}
+.inst{margin:8px 0 0;font-size:13px;color:#333}
+.items{list-style:none;margin:0;padding:0}
+.items.c2{column-count:2;column-gap:12mm}
+.items li{display:flex;align-items:baseline;gap:6px;padding:5px 0;break-inside:avoid;font-size:15px;line-height:1.55}
+.items .n{flex:0 0 2.1em;text-align:right;font-variant-numeric:tabular-nums}
+.items .zh{flex:1 1 auto;min-width:0;overflow-wrap:anywhere}
+.items .ans{flex:0 0 auto;display:inline-flex;align-items:baseline;gap:2px}
+.items .fill{display:inline-block;min-width:34mm;text-align:center;border-bottom:1px solid #111;font-family:var(--latin);font-size:16px;line-height:1.35;padding:0 4px}
+.items.c2 .fill{min-width:27mm}
+.key .fill{color:var(--pen);font-weight:700;font-style:italic}
+.foot{margin-top:auto;padding-top:12px;text-align:center;font-size:12px;color:#555;font-family:var(--ui)}
+
+@media (max-width:860px){
+  .app{grid-template-columns:minmax(0,1fr);padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+  .field input[type=text],.field input[type=number],.field select{font-size:16px}  /* stops iOS zooming on focus */
+  .btn,.tab{min-height:44px}
+  .drop{padding:22px 12px}
+}
+
+@media print{
+  @page{size:A4;margin:14mm}
+  html,body{background:#fff}
+  .top,.rail,.tabs{display:none!important}
+  .app{display:block;padding:0;margin:0;max-width:none}
+  .stage{overflow:visible}
+  .sheet,.sheet.active{zoom:1!important}
+  .sheet{display:none!important}
+  .sheet.active{display:block!important}
+  body.print-q #sheet-q{display:block!important}
+  body.print-q #sheet-a{display:none!important}
+  body.print-a #sheet-a{display:block!important}
+  body.print-a #sheet-q{display:none!important}
+  .page{box-shadow:none;width:auto;min-height:0;padding:0;margin:0;break-after:page;page-break-after:always}
+  .page:last-child{break-after:auto;page-break-after:auto}
+  .page.multi{min-height:255mm}
+  .key .fill,.page h2 .stamp{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>Vocabulary Quiz Maker</h1>
+  <p>Upload a word list, shuffle the Chinese meanings, and print a quiz sheet and an answer key.</p>
+</div>
+
+<div class="app">
+  <aside class="rail" aria-label="Quiz settings">
+    <section>
+      <h2>1. Word list file</h2>
+      <div class="drop" id="drop" tabindex="0" role="button" aria-label="Choose or drop a word list file">
+        <b>Tap or click to choose a file</b>
+        <span>.xlsx or .csv, for example from the Files app (a file named .exl is also tried)</span>
+      </div>
+      <input type="file" id="file" hidden>
+      <p class="file-note" id="fileNote">Showing sample words. Upload your file to replace them.</p>
+      <div class="field" id="sheetWrap" style="display:none;margin-top:8px">
+        <label for="sheetSel">Excel sheet</label>
+        <select id="sheetSel"></select>
+      </div>
+      <div class="notice" id="notice" role="status"></div>
+    </section>
+
+    <section>
+      <h2>2. Quiz settings</h2>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="field">
+          <label for="title">Quiz title</label>
+          <input type="text" id="title" value="English Vocabulary Quiz">
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label for="count">Questions (<span id="total">0</span> words)</label>
+            <input type="number" id="count" min="1" value="10">
+          </div>
+          <div class="field">
+            <label for="perPage">Per page</label>
+            <input type="number" id="perPage" min="1" placeholder="Auto">
+          </div>
+        </div>
+        <div class="field">
+          <label for="cols">Layout</label>
+          <select id="cols"><option value="1">1 column</option><option value="2">2 columns</option></select>
+        </div>
+        <p class="file-note" id="pageInfo" style="margin:0"></p>
+        <label class="check"><input type="checkbox" id="meta" checked> Add Class, Name, No., Date and Score fields</label>
+      </div>
+    </section>
+
+    <section class="btns">
+      <button class="btn primary" id="shuffle" type="button">Shuffle again</button>
+      <button class="btn" id="printQ" type="button">Print question sheet</button>
+      <button class="btn pen" id="printA" type="button">Print answer key</button>
+      <p class="file-note">Print opens the print preview. On a computer choose "Save as PDF" as the destination; on iPhone use the Share button in the print preview to save a PDF or print with AirPrint. Both sheets use the same numbers, order and page breaks.</p>
+    </section>
+  </aside>
+
+  <main class="stage" id="stage">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="tabQ" aria-selected="true" type="button">Question Sheet</button>
+      <button class="tab key" role="tab" id="tabA" aria-selected="false" type="button">Answer Key</button>
+    </div>
+    <article class="sheet active" id="sheet-q"></article>
+    <article class="sheet key" id="sheet-a"></article>
+  </main>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+//#parse-start
+var CJK=/[㐀-鿿豈-﫿]/;
+var LAT=/[A-Za-z]/;
+var HEADER=/^(english|word|words|vocabulary|vocab|chinese|meaning|translation|單字|字彙|英文|英文單字|英文字|中文|中文意思|意思|詞性|pos|part of speech|no\.?|編號|序號|#)$/i;
+var POS=/^(n|v|vt|vi|adj|adv|prep|conj|pron|art|aux|int|num|det)\.?$/i;
+
+// Turns rows of cells into [{en, zh}]. Works whether English and Chinese sit in
+// two columns or are written together in one cell ("I 我").
+function parseRows(aoa){
+  var items=[],skipped=0,first=true;
+  for(var r=0;r<aoa.length;r++){
+    var cells=(aoa[r]||[]).map(function(c){return String(c==null?'':c).trim();}).filter(Boolean);
+    if(!cells.length)continue;
+    if(first){
+      first=false;
+      if(cells.every(function(c){return HEADER.test(c);}))continue;
+    }
+    var en='',zh='';
+    if(cells.length===1){
+      var c=cells[0],m=c.match(/^([A-Za-z][A-Za-z0-9\s'’.\-\/()]*?)\s*[:：=\-–—,，、]?\s*([㐀-鿿豈-﫿].*)$/);
+      if(m){en=m[1].trim();zh=m[2].trim();}
+      else{
+        var m2=c.match(/^([㐀-鿿豈-﫿].*?)\s*[:：=\-–—,，、]?\s*([A-Za-z][A-Za-z0-9\s'’.\-\/()]*)$/);
+        if(m2){zh=m2[1].trim();en=m2[2].trim();}
+      }
+    }else{
+      for(var i=0;i<cells.length;i++){
+        var cell=cells[i];
+        if(CJK.test(cell)){ if(!zh)zh=cell; }
+        else if(LAT.test(cell)){ if(!en&&!POS.test(cell))en=cell; }
+      }
+    }
+    if(en&&zh)items.push({en:en,zh:zh});else skipped++;
+  }
+  return {items:items,skipped:skipped};
+}
+
+function parseCSV(text){
+  var rows=[],row=[],cur='',q=false;
+  if(text.charCodeAt(0)===0xFEFF)text=text.slice(1);
+  var delim=(text.split('\n')[0].indexOf('\t')>-1)?'\t':',';
+  for(var i=0;i<text.length;i++){
+    var ch=text[i];
+    if(q){
+      if(ch==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else q=false; }
+      else cur+=ch;
+    }else if(ch==='"')q=true;
+    else if(ch===delim){row.push(cur);cur='';}
+    else if(ch==='\n'||ch==='\r'){
+      if(ch==='\r'&&text[i+1]==='\n')i++;
+      row.push(cur);rows.push(row);row=[];cur='';
+    }else cur+=ch;
+  }
+  if(cur!==''||row.length){row.push(cur);rows.push(row);}
+  return rows;
+}
+
+function shuffled(n){
+  var a=[],i,j,t;
+  for(i=0;i<n;i++)a.push(i);
+  for(i=n-1;i>0;i--){j=Math.floor(Math.random()*(i+1));t=a[i];a[i]=a[j];a[j]=t;}
+  return a;
+}
+
+// Splits a list into pages of `per` questions. per < 1 or NaN means one page.
+function paginate(list,per){
+  if(!(per>=1))per=list.length||1;
+  var pages=[];
+  for(var i=0;i<list.length;i+=per)pages.push(list.slice(i,i+per));
+  if(!pages.length)pages.push([]);
+  return pages;
+}
+//#parse-end
+
+//#xlsx-start
+var NOT_XLSX='Could not read this file. Open it in Excel and save it as .xlsx or .csv, then upload it again.';
+var OLD_XLS='This is an old Excel format (.xls). Open it in Excel and save it as .xlsx or .csv, then upload it again.';
+function u16(d,o){return d[o]|(d[o+1]<<8);}
+function u32(d,o){return (d[o]|(d[o+1]<<8)|(d[o+2]<<16)|(d[o+3]<<24))>>>0;}
+function inflateRaw(u8){
+  var stream=new Blob([u8]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  return new Response(stream).arrayBuffer().then(function(b){return new Uint8Array(b);});
+}
+function readZip(buf){
+  var d=new Uint8Array(buf),i=d.length-22;
+  while(i>=0&&u32(d,i)!==0x06054b50)i--;
+  if(i<0)throw new Error(NOT_XLSX);
+  var count=u16(d,i+10),p=u32(d,i+16),entries={},utf8=new TextDecoder('utf-8');
+  for(var k=0;k<count;k++){
+    if(u32(d,p)!==0x02014b50)throw new Error(NOT_XLSX);
+    var n=u16(d,p+28),m=u16(d,p+30),c=u16(d,p+32);
+    entries[utf8.decode(d.subarray(p+46,p+46+n)).replace(/\\/g,'/')]={method:u16(d,p+10),size:u32(d,p+20),offset:u32(d,p+42)};
+    p+=46+n+m+c;
+  }
+  return {
+    text:function(name){
+      var e=entries[name];
+      if(!e)return Promise.resolve(null);
+      var o=e.offset,start=o+30+u16(d,o+26)+u16(d,o+28),data=d.subarray(start,start+e.size);
+      var job=e.method===0?Promise.resolve(data):(e.method===8?inflateRaw(data):Promise.reject(new Error(NOT_XLSX)));
+      return job.then(function(u){return utf8.decode(u);});
+    }
+  };
+}
+function unesc(s){
+  return s.replace(/&(#x[0-9a-fA-F]+|#[0-9]+|amp|lt|gt|quot|apos);/g,function(_,e){
+    if(e==='amp')return '&'; if(e==='lt')return '<'; if(e==='gt')return '>';
+    if(e==='quot')return '"'; if(e==='apos')return "'";
+    return String.fromCodePoint(e.charAt(1)==='x'?parseInt(e.slice(2),16):parseInt(e.slice(1),10));
+  });
+}
+function attrs(s){
+  var o={},re=/([\w:.-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g,m;
+  while((m=re.exec(s)))o[m[1]]=unesc(m[2]!==undefined?m[2]:m[3]);
+  return o;
+}
+// All <t> text inside an <si> or <is>, leaving out phonetic (furigana) runs.
+function textOf(x){
+  x=x.replace(/<(?:\w+:)?rPh\b[\s\S]*?<\/(?:\w+:)?rPh>/g,'');
+  var out='',re=/<(?:\w+:)?t\b[^>]*?(?:\/>|>([\s\S]*?)<\/(?:\w+:)?t>)/g,m;
+  while((m=re.exec(x)))out+=m[1]?unesc(m[1]):'';
+  return out;
+}
+function colIdx(ref){
+  var m=/^([A-Za-z]+)/.exec(ref),n=0,i;
+  if(!m)return -1;
+  for(i=0;i<m[1].length;i++)n=n*26+(m[1].charAt(i).toUpperCase().charCodeAt(0)-64);
+  return n-1;
+}
+function parseSheetXml(xml,sst){
+  var rows=[],rowRe=/<(?:\w+:)?row\b[^>]*?(?:\/>|>([\s\S]*?)<\/(?:\w+:)?row>)/g,rm;
+  while((rm=rowRe.exec(xml))){
+    var row=[],col=-1;
+    if(rm[1]){
+      var cRe=/<(?:\w+:)?c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/(?:\w+:)?c>)/g,cm;
+      while((cm=cRe.exec(rm[1]))){
+        var a=attrs(cm[1]),ci=a.r?colIdx(a.r):-1,body=cm[2]||'',val='';
+        col=ci>=0?ci:col+1;
+        if(a.t==='inlineStr')val=textOf(body);
+        else{
+          var vm=/<(?:\w+:)?v>([\s\S]*?)<\/(?:\w+:)?v>/.exec(body);
+          if(vm){
+            val=unesc(vm[1]);
+            if(a.t==='s'){var ix=parseInt(val,10);val=(ix>=0&&ix<sst.length)?sst[ix]:'';}
+          }
+        }
+        if(col<16384){while(row.length<=col)row.push('');row[col]=val;}
+      }
+    }
+    rows.push(row);
+  }
+  return rows;
+}
+// Reads an .xlsx file (a zip of XML files) entirely in the browser. Resolves to [{name, rows}].
+function parseXlsx(buf){
+  var d=new Uint8Array(buf);
+  if(d.length>=4&&d[0]===0xD0&&d[1]===0xCF&&d[2]===0x11&&d[3]===0xE0)return Promise.reject(new Error(OLD_XLS));
+  var zip;
+  try{zip=readZip(buf);}catch(e){return Promise.reject(new Error(NOT_XLSX));}
+  return Promise.all([zip.text('xl/workbook.xml'),zip.text('xl/_rels/workbook.xml.rels'),zip.text('xl/sharedStrings.xml')]).then(function(r){
+    if(!r[0])throw new Error(NOT_XLSX);
+    var sst=[],m,re;
+    if(r[2]){re=/<(?:\w+:)?si\b[^>]*?(?:\/>|>([\s\S]*?)<\/(?:\w+:)?si>)/g;while((m=re.exec(r[2])))sst.push(m[1]?textOf(m[1]):'');}
+    var targets={};
+    if(r[1]){
+      re=/<Relationship\b([^>]*?)\/?>/g;
+      while((m=re.exec(r[1]))){var a=attrs(m[1]),t=a.Target||'';targets[a.Id]=t.charAt(0)==='/'?t.slice(1):'xl/'+t;}
+    }
+    var list=[];
+    re=/<(?:\w+:)?sheet\b([^>]*?)\/?>/g;
+    while((m=re.exec(r[0]))){
+      var at=attrs(m[1]),rid=at['r:id'];
+      if(!rid)Object.keys(at).forEach(function(k){if(/:id$/.test(k))rid=at[k];});
+      list.push({name:at.name||('Sheet'+(list.length+1)),rid:rid});
+    }
+    if(!list.length)throw new Error(NOT_XLSX);
+    return Promise.all(list.map(function(s,i){
+      return zip.text(targets[s.rid]||('xl/worksheets/sheet'+(i+1)+'.xml')).then(function(x){
+        return x==null?null:{name:s.name,rows:parseSheetXml(x,sst)};
+      });
+    })).then(function(all){
+      var out=all.filter(Boolean);
+      if(!out.length)throw new Error(NOT_XLSX);
+      return out;
+    });
+  });
+}
+//#xlsx-end
+
+var SAMPLE=[['I','我'],['you','你'],['he','他'],['she','她'],['apple','蘋果'],['book','書'],['teacher','老師'],['student','學生'],['school','學校'],['friend','朋友']];
+var words=SAMPLE.map(function(p){return {en:p[0],zh:p[1]};});
+var order=[];
+var sheets=[];
+var $=function(id){return document.getElementById(id);};
+
+function el(tag,cls,text){
+  var e=document.createElement(tag);
+  if(cls)e.className=cls;
+  if(text!=null)e.textContent=text;
+  return e;
+}
+
+function notice(msg,isErr){
+  var n=$('notice');
+  n.textContent=msg||'';
+  n.className='notice'+(msg?' show':'')+(isErr?' err':'');
+}
+
+function setWords(list,label){
+  words=list;
+  order=shuffled(words.length);
+  $('total').textContent=words.length;
+  $('count').max=words.length;
+  $('count').value=words.length;
+  $('fileNote').textContent=label;
+  render();
+}
+
+function picked(){
+  var n=parseInt($('count').value,10);
+  if(!(n>=1))n=words.length;
+  n=Math.min(n,words.length);
+  return order.slice(0,n).map(function(i){return words[i];});
+}
+
+function buildSheet(root,pages,total,isKey){
+  root.textContent='';
+  var title=$('title').value.trim()||'English Vocabulary Quiz';
+  var multi=pages.length>1;
+  var done=0;
+  pages.forEach(function(chunk,pi){
+    var pg=el('section','page'+(multi?' multi':''));
+    var head=el('header');
+    var h2=el('h2');
+    h2.appendChild(el('span',null,title));
+    if(isKey)h2.appendChild(el('span','stamp','ANSWER KEY'));
+    head.appendChild(h2);
+    if($('meta').checked){
+      var meta=el('div','meta');
+      var fields=isKey?['Score']:['Class','Name','No.','Date','Score'];
+      fields.forEach(function(f){
+        var s=el('span','f');
+        s.appendChild(el('span',null,f+':'));
+        s.appendChild(el('i'));
+        meta.appendChild(s);
+      });
+      head.appendChild(meta);
+    }
+    var range=multi?('Questions '+(done+1)+'–'+(done+chunk.length)+' of '+total+'. '):(total+' question'+(total===1?'':'s')+'. ');
+    head.appendChild(el('p','inst',range+(isKey?'Correct answers are shown in red.':'Write the English word for each Chinese meaning in the brackets.')));
+    pg.appendChild(head);
+
+    var ol=el('ol','items'+($('cols').value==='2'?' c2':''));
+    chunk.forEach(function(w,i){
+      var li=el('li');
+      li.appendChild(el('span','n',(done+i+1)+'.'));
+      li.appendChild(el('span','zh',w.zh));
+      var ans=el('span','ans');
+      ans.appendChild(document.createTextNode('('));
+      ans.appendChild(el('span','fill',isKey?w.en:''));
+      ans.appendChild(document.createTextNode(')'));
+      li.appendChild(ans);
+      ol.appendChild(li);
+    });
+    pg.appendChild(ol);
+    if(multi)pg.appendChild(el('div','foot','Page '+(pi+1)+' of '+pages.length));
+    root.appendChild(pg);
+    done+=chunk.length;
+  });
+}
+
+function render(){
+  var list=picked();
+  var pages=paginate(list,parseInt($('perPage').value,10));
+  buildSheet($('sheet-q'),pages,list.length,false);
+  buildSheet($('sheet-a'),pages,list.length,true);
+  $('pageInfo').textContent=list.length+' question'+(list.length===1?'':'s')+' → '+pages.length+' page'+(pages.length===1?'':'s')+' per sheet';
+  fitPreview();
+  // Same Chinese meaning on two words makes the answer ambiguous.
+  var seen={},dup={};
+  list.forEach(function(w){ if(seen[w.zh])dup[w.zh]=1; seen[w.zh]=1; });
+  var d=Object.keys(dup);
+  if(d.length&&!$('notice').classList.contains('err')){
+    notice('Duplicate Chinese meanings: '+d.slice(0,5).join(', ')+(d.length>5?' and more':'')+'. Students may give different correct answers; consider editing the file.');
+  }
+}
+
+function showTab(which){
+  var q=which==='q';
+  $('tabQ').setAttribute('aria-selected',q);
+  $('tabA').setAttribute('aria-selected',!q);
+  $('sheet-q').classList.toggle('active',q);
+  $('sheet-a').classList.toggle('active',!q);
+  fitPreview();
+}
+
+function loadSheet(i){
+  applyParsed(parseRows(sheets[i].rows),$('fileNote').dataset.name||'');
+}
+
+function applyParsed(res,fileName){
+  notice('');
+  if(!res.items.length){
+    notice('No English–Chinese pairs found. Make sure one column holds English words and another holds Chinese meanings.',true);
+    return;
+  }
+  var label='Loaded "'+fileName+'": '+res.items.length+' words';
+  if(res.skipped)label+=' (skipped '+res.skipped+' row'+(res.skipped===1?'':'s')+' missing English or Chinese)';
+  setWords(res.items,label);
+}
+
+var READ_FAIL=NOT_XLSX;
+
+function readFile(file){
+  if(!file)return;
+  $('fileNote').dataset.name=file.name;
+  sheets=[];
+  $('sheetWrap').style.display='none';
+  var isText=/\.(csv|txt|tsv)$/i.test(file.name);
+  var fr=new FileReader();
+  fr.onerror=function(){notice('Could not read the file. Please try again.',true);};
+  fr.onload=function(){
+    try{
+      var buf=fr.result;
+      if(isText){
+        var text;
+        try{text=new TextDecoder('utf-8',{fatal:true}).decode(buf);}
+        catch(e){text=new TextDecoder('big5').decode(buf);}   // CSV saved by Excel on Traditional Chinese Windows is Big5
+        applyParsed(parseRows(parseCSV(text)),file.name);
+        return;
+      }
+      parseXlsx(buf).then(function(j){
+        sheets=j;
+        var sel=$('sheetSel');
+        sel.textContent='';
+        sheets.forEach(function(sh,i){var o=el('option',null,sh.name);o.value=String(i);sel.appendChild(o);});
+        $('sheetWrap').style.display=sheets.length>1?'flex':'none';
+        if(!sheets.length)throw new Error('This file has no sheets.');
+        loadSheet(0);
+      }).catch(function(err){
+        notice((err&&err.message)||READ_FAIL,true);
+      });
+    }catch(err){
+      notice(READ_FAIL,true);
+    }
+  };
+  fr.readAsArrayBuffer(file);
+}
+
+function doPrint(which){
+  document.body.classList.remove('print-q','print-a');
+  document.body.classList.add('print-'+which);
+  window.print();
+}
+window.addEventListener('afterprint',function(){document.body.classList.remove('print-q','print-a');});
+
+// wiring
+var drop=$('drop'),fileIn=$('file');
+drop.addEventListener('click',function(){fileIn.click();});
+drop.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();fileIn.click();}});
+fileIn.addEventListener('change',function(){readFile(fileIn.files[0]);fileIn.value='';});
+['dragenter','dragover'].forEach(function(t){drop.addEventListener(t,function(e){e.preventDefault();drop.classList.add('over');});});
+['dragleave','drop'].forEach(function(t){drop.addEventListener(t,function(e){e.preventDefault();drop.classList.remove('over');});});
+drop.addEventListener('drop',function(e){readFile(e.dataTransfer.files[0]);});
+$('sheetSel').addEventListener('change',function(){loadSheet(parseInt(this.value,10));});
+$('shuffle').addEventListener('click',function(){order=shuffled(words.length);render();});
+$('printQ').addEventListener('click',function(){showTab('q');doPrint('q');});
+$('printA').addEventListener('click',function(){showTab('a');doPrint('a');});
+$('tabQ').addEventListener('click',function(){showTab('q');});
+$('tabA').addEventListener('click',function(){showTab('a');});
+['title','count','perPage','cols','meta'].forEach(function(id){
+  $(id).addEventListener('input',function(){ if(!$('notice').classList.contains('err'))notice(''); render(); });
+  $(id).addEventListener('change',render);
+});
+
+setWords(words,'Showing sample words. Upload your file to replace them.');
+
+// Shrink the A4 preview to fit a narrow screen (printing always uses full size).
+function fitPreview(){
+  var st=$('stage');
+  if(!st||!st.clientWidth)return;
+  var s=Math.min(1,(st.clientWidth-2)/794);
+  ['sheet-q','sheet-a'].forEach(function(id){$(id).style.zoom=s<1?String(s):'';});
+}
+window.addEventListener('resize',fitPreview);
+fitPreview();
+
+// Offline support once the page has been opened from a web address.
+if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){
+  window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});
+}
+})();
+</script>
+</body>
+</html>

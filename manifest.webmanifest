@@ -1,0 +1,14 @@
+{
+  "name": "Vocabulary Quiz Maker",
+  "short_name": "Vocab Quiz",
+  "description": "Make vocabulary quiz sheets and answer keys from a word list.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#e4e7e1",
+  "theme_color": "#1f3a34",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
