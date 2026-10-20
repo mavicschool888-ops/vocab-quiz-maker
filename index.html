@@ -76,7 +76,10 @@ button,input,select{font:inherit;color:inherit}
 .sheet{display:none;max-width:794px}
 .sheet.active{display:block}
 .sheet canvas{display:block;width:100%;height:auto;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.18);margin:0 0 14px}
+textarea{width:100%;border:1px solid var(--line);border-radius:4px;padding:7px 9px;font:14px/1.4 ui-monospace,Menlo,monospace;background:#fff}
+.linkbtn{background:none;border:0;padding:0;color:var(--accent);text-decoration:underline;cursor:pointer;font-size:13px;text-align:left}
 @media (max-width:860px){
+  textarea{font-size:16px}
   .app{grid-template-columns:minmax(0,1fr);padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
   .field input[type=text],.field input[type=number],.field select{font-size:16px}
   .btn,.tab{min-height:44px}
@@ -112,14 +115,31 @@ button,input,select{font:inherit;color:inherit}
     <section>
       <h2>2. Quiz settings</h2>
       <div style="display:flex;flex-direction:column;gap:10px">
-        <div class="field">
-          <label for="title">Quiz title</label>
-          <input type="text" id="title" value="English Vocabulary Quiz">
+        <div class="row2">
+          <div class="field">
+            <label for="qType">Test type</label>
+            <select id="qType"></select>
+          </div>
+          <div class="field" id="qLevelWrap">
+            <label for="qLevel">Level</label>
+            <select id="qLevel"></select>
+          </div>
+        </div>
+        <button class="linkbtn" id="editTypes" type="button">Edit the Test type and Level lists</button>
+        <div id="typesBox" style="display:none">
+          <p class="file-note" style="margin:0 0 6px">One line for each test type. Write the levels after a colon, separated by commas. Example: <code>STYLE: L1, L2, L3</code>. A line without a colon has no levels (example: <code>PET</code>).</p>
+          <textarea id="typesText" rows="8" spellcheck="false" autocapitalize="off"></textarea>
+          <div class="row2" style="margin-top:8px"><button class="btn primary" id="typesSave" type="button">Save lists</button><button class="btn" id="typesReset" type="button">Restore original</button></div>
+          <div class="notice" id="typesNote" role="status"></div>
         </div>
         <div class="field">
           <label for="letters">Words starting with (optional)</label>
-          <input type="text" id="letters" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Example: a   or   a,b   or   a,b,c   or   a-d">
+          <input type="text" id="letters" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Example: a   or   a,b   or   a,b,c   or   a-d">
           <p class="file-note" id="letterInfo" style="margin:0">Leave empty to use all words.</p>
+        </div>
+        <div class="field">
+          <label for="title">Quiz title (made from the choices above; you can also type your own)</label>
+          <input type="text" id="title" value="English Vocabulary Quiz">
         </div>
         <div class="row2">
           <div class="field">
@@ -130,6 +150,11 @@ button,input,select{font:inherit;color:inherit}
             <label for="perPage">Per page</label>
             <input type="number" id="perPage" min="1" placeholder="Auto" inputmode="numeric">
           </div>
+        </div>
+        <div class="field">
+          <label for="mode">Question type</label>
+          <select id="mode"><option value="zh2en">Chinese to English (write the English word)</option><option value="en2zh">English to Chinese (write the Chinese meaning)</option></select>
+          <p class="file-note" id="modeInfo" style="margin:0"></p>
         </div>
         <div class="field">
           <label for="cols">Layout</label>
@@ -153,7 +178,7 @@ button,input,select{font:inherit;color:inherit}
           <button class="btn" id="downloadAll" type="button">Download the picture files</button>
         </div>
       </div>
-      <p class="file-note">Each button makes one picture (PNG) for every page and opens the iPhone share sheet. Tap <b>Save Image</b> (goes to Photos) or <b>Save to Files</b>. To use both, run the share sheet twice. Both sheets use the same numbers, order and page breaks.</p>
+      <p class="file-note">Each button makes one picture (JPG) for every page and opens the iPhone share sheet. Tap <b>Save Image</b> (goes to Photos) or <b>Save to Files</b>. To use both, run the share sheet twice. Both sheets use the same numbers, order and page breaks.</p>
     </section>
 
     <section>
@@ -265,6 +290,39 @@ function filterByLetters(list,spec){
   var p=parseLetters(spec);
   if(!p.length)return list;
   return list.filter(function(w){return startsWithAny(w.en,p);});
+}
+
+// "a,b,c,d,x" -> "A-D, X" for the quiz title.
+function lettersLabel(spec){
+  var p=parseLetters(spec).map(function(x){return x.toUpperCase();}),out=[],i=0,j,k;
+  while(i<p.length){
+    j=i;
+    while(j+1<p.length&&p[j].length===1&&p[j+1].length===1&&p[j+1].charCodeAt(0)===p[j].charCodeAt(0)+1)j++;
+    if(j-i>=2)out.push(p[i]+'-'+p[j]);
+    else for(k=i;k<=j;k++)out.push(p[k]);
+    i=j+1;
+  }
+  return out.join(', ');
+}
+// Test types and their levels (from the school's list).
+var DEFAULT_TYPES=[['STYLE',['L1','L2','L3','L4','L5','L6']],['JET',['LA','LB','LC']],['YLE',['Starters','Movers','Flyers']],['GEPT',['L1','L2','L3']],['PET',[]],['FCE',[]],['ACE',[]]];
+var QUIZ_TYPES=DEFAULT_TYPES.map(function(q){return [q[0],q[1].slice()];});
+function parseTypesText(text){
+  var out=[],seen={};
+  String(text||'').split(/\r?\n/).forEach(function(line){
+    var i=line.search(/[:\uff1a]/),t=(i<0?line:line.slice(0,i)).trim();
+    var lv=i<0?[]:line.slice(i+1).split(/[,\uff0c\u3001;\uff1b]+/).map(function(x){return x.trim();}).filter(Boolean);
+    if(!t||seen[t.toLowerCase()])return;
+    seen[t.toLowerCase()]=1;
+    lv=lv.filter(function(x,k){return lv.indexOf(x)===k;}).slice(0,40).map(function(x){return x.slice(0,24);});
+    out.push([t.slice(0,24),lv]);
+  });
+  return out.slice(0,60);
+}
+function typesToText(arr){return arr.map(function(q){return q[0]+(q[1].length?': '+q[1].join(', '):'');}).join('\n');}
+function makeTitle(type,level,spec){
+  var t=type?(type+(level?' '+level:'')+' Vocabulary Quiz'):'English Vocabulary Quiz',l=lettersLabel(spec);
+  return l?t+' - Words '+l:t;
 }
 
 function shuffled(n){
@@ -488,6 +546,7 @@ function parseXlsx(buf){
 //#draw-start
 // Units: 1 unit = 0.1 mm, A4 page = 2100 x 2970 units.
 var PW=2100,PH=2970,ML=150,MR=150,MT=140,MB=140;
+var FOOT=440;   // footer band (Sheet ID, QR code, page number), same on both sheets so the pages break the same way
 var ROWH={1:92,2:92,3:128,4:128};
 var GAP={1:0,2:120,3:80,4:60};
 var FONT_CJK='"PingFang TC","Noto Sans TC","Noto Sans CJK TC","Microsoft JhengHei","Heiti TC",sans-serif';
@@ -509,9 +568,9 @@ function clipText(text,font,maxW){
   return t+'…';
 }
 function metaFields(isKey){return isKey?['Score']:['Class','Name','No.','Date','Score'];}
-function instText(isKey,startNo,count,total,multi){
+function instText(isKey,startNo,count,total,multi,mode){
   var range=multi?('Questions '+startNo+'–'+(startNo+count-1)+' of '+total+'. '):(total+' question'+(total===1?'':'s')+'. ');
-  return range+(isKey?'Correct answers are shown in red.':'Write the English word for each Chinese meaning in the brackets.');
+  return range+(isKey?'Correct answers are shown in red.':(mode==='en2zh'?'Write the Chinese meaning for each English word in the brackets.':'Write the English word for each Chinese meaning in the brackets.'));
 }
 // Draws the page header when ctx is given. Always returns the y position under the header rule.
 function header(ctx,o){
@@ -549,60 +608,187 @@ function header(ctx,o){
 // Rows that fit in one column of a page, for a layout of cn columns.
 function pageCapacity(cn,showMeta){
   var top=header(null,{title:'Title',isKey:false,showMeta:showMeta,inst:'Write the English word for each Chinese meaning in the brackets.'})+50;
-  var bottom=PH-MB-80;
+  var bottom=PH-MB-FOOT-20;
   return Math.max(1,Math.floor((bottom-top)/ROWH[cn]))*cn;
 }
-function drawRow(ctx,x,y,colW,cn,no,w,isKey){
-  var rowH=ROWH[cn];
+function drawRow(ctx,x,y,colW,cn,no,w,isKey,mode){
+  var rowH=ROWH[cn],rev=mode==='en2zh',pr=rev?w.en:w.zh,an=rev?w.zh:w.en,pfam=rev?FONT_LAT:FONT_CJK;
   ctx.fillStyle=INK;
   if(cn<=2){
     var fs=44,base=y+Math.round(rowH*0.7),nW=100,fillW=cn===1?340:270,br=22,groupW=fillW+br*2;
     ctx.textAlign='right';ctx.font='400 '+fs+'px '+FONT_CJK;ctx.fillText(no+'.',x+nW-8,base);
-    var zmax=colW-nW-22-groupW-28,zs=fitSize(w.zh,'400',fs,zmax,26,FONT_CJK),zf='400 '+zs+'px '+FONT_CJK;
-    ctx.textAlign='left';ctx.font=zf;ctx.fillText(clipText(w.zh,zf,zmax),x+nW+14,base);
+    var zmax=colW-nW-22-groupW-28,zs=fitSize(pr,'400',fs,zmax,26,pfam),zf='400 '+zs+'px '+pfam;
+    ctx.textAlign='left';ctx.font=zf;ctx.fillText(clipText(pr,zf,zmax),x+nW+14,base);
     var gx=x+colW-groupW;
     ctx.font='400 '+fs+'px '+FONT_UI;ctx.fillText('(',gx,base);ctx.fillText(')',gx+br+fillW,base);
-    drawFill(ctx,gx+br,base,fillW,w.en,isKey,46);
+    drawFill(ctx,gx+br,base,fillW,an,isKey,46,rev);
   }else{
     var fs3=40,nW3=84,b1=y+46,b2=y+rowH-22,br3=22;
     ctx.textAlign='right';ctx.font='400 '+fs3+'px '+FONT_CJK;ctx.fillText(no+'.',x+nW3-8,b1);
-    var zm=colW-nW3-14,z3=fitSize(w.zh,'400',fs3,zm,28,FONT_CJK),f3='400 '+z3+'px '+FONT_CJK;
-    ctx.textAlign='left';ctx.font=f3;ctx.fillText(clipText(w.zh,f3,zm),x+nW3+4,b1);
+    var zm=colW-nW3-14,z3=fitSize(pr,'400',fs3,zm,28,pfam),f3='400 '+z3+'px '+pfam;
+    ctx.textAlign='left';ctx.font=f3;ctx.fillText(clipText(pr,f3,zm),x+nW3+4,b1);
     var fw=colW-nW3-br3*2;
     ctx.font='400 '+fs3+'px '+FONT_UI;ctx.fillText('(',x+nW3,b2);ctx.fillText(')',x+nW3+br3+fw,b2);
-    drawFill(ctx,x+nW3+br3,b2,fw,w.en,isKey,44);
+    drawFill(ctx,x+nW3+br3,b2,fw,an,isKey,44,rev);
   }
 }
-function drawFill(ctx,x,base,width,en,isKey,size){
+function drawFill(ctx,x,base,width,en,isKey,size,cjk){
   ctx.strokeStyle=INK;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x,base+9);ctx.lineTo(x+width,base+9);ctx.stroke();
   if(isKey){
-    var st='italic 700',s=fitSize(en,st,size,width-16,22,FONT_LAT),f=st+' '+s+'px '+FONT_LAT;
+    var st=cjk?'700':'italic 700',fam=cjk?FONT_CJK:FONT_LAT,s=fitSize(en,st,size,width-16,22,fam),f=st+' '+s+'px '+fam;
     ctx.fillStyle=PEN;ctx.textAlign='center';ctx.font=f;ctx.fillText(clipText(en,f,width-8),x+width/2,base-2);
     ctx.fillStyle=INK;
   }
 }
-// o: {title,isKey,showMeta,cn,chunk,startNo,total,pageNo,pageCount}
+function drawFooter(ctx,o){
+  var fy=PH-MB-FOOT,qs=o.isKey?400:220,x=ML+qs+50,maxW=PW-MR-x;
+  ctx.strokeStyle='#999';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(ML,fy);ctx.lineTo(PW-MR,fy);ctx.stroke();
+  try{QRGen.draw(ctx,o.qr,o.isKey?'L':'M',ML-20,fy+10,qs);}catch(e){}
+  var y=fy+(o.isKey?150:90);
+  ctx.textAlign='left';ctx.fillStyle=INK;ctx.font='700 40px '+FONT_UI;ctx.fillText('Sheet ID: '+o.id,x,y);
+  ctx.fillStyle='#444';var sub=(o.isKey?'Answer Key':'Question Sheet')+' · '+o.title,sf='400 30px '+FONT_CJK;
+  ctx.font=sf;ctx.fillText(clipText(sub,sf,maxW),x,y+50);
+  ctx.fillStyle='#666';var hint=o.isKey?'Scan with Quiz Grader to check the student papers.':'Quiz Grader reads the code to find the answer key.',hs=fitSize(hint,'400',28,maxW,20,FONT_UI);
+  ctx.font='400 '+hs+'px '+FONT_UI;ctx.fillText(hint,x,y+92);
+  ctx.fillStyle='#333';ctx.textAlign='right';ctx.font='400 34px '+FONT_UI;ctx.fillText('Page '+o.pageNo+' of '+o.pageCount,PW-MR,fy+FOOT-12);
+}
+// o: {title,isKey,showMeta,cn,chunk,startNo,total,pageNo,pageCount,mode,id,qr}
 function renderPage(o,scale){
   var c=document.createElement('canvas');
   c.width=Math.round(PW*scale);c.height=Math.round(PH*scale);
   var ctx=c.getContext('2d');
-  ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);
+  ctx.fillStyle=o.isKey?'#f4f4f1':'#fff';ctx.fillRect(0,0,c.width,c.height);
   ctx.scale(c.width/PW,c.height/PH);
   ctx.textBaseline='alphabetic';
   var multi=o.pageCount>1;
-  var top=header(ctx,{title:o.title,isKey:o.isKey,showMeta:o.showMeta,inst:instText(o.isKey,o.startNo,o.chunk.length,o.total,multi)})+50;
+  if(o.isKey){   // faint diagonal watermark: the answer key is never mistaken for the question sheet
+    ctx.save();ctx.translate(PW/2,PH*0.48);ctx.rotate(-32*Math.PI/180);
+    ctx.fillStyle='rgba(200,49,43,0.09)';ctx.textAlign='center';ctx.font='800 300px '+FONT_UI;ctx.fillText('ANSWER KEY',0,100);
+    ctx.restore();
+  }
+  var top=header(ctx,{title:o.title,isKey:o.isKey,showMeta:o.showMeta,inst:instText(o.isKey,o.startNo,o.chunk.length,o.total,multi,o.mode)})+50;
   var cn=o.cn,gap=GAP[cn],colW=(PW-ML-MR-gap*(cn-1))/cn,per=Math.ceil(o.chunk.length/cn)||1;
   o.chunk.forEach(function(w,i){
     var col=i%cn,row=Math.floor(i/cn);
-    drawRow(ctx,ML+col*(colW+gap),top+row*ROWH[cn],colW,cn,o.startNo+i,w,o.isKey);
+    drawRow(ctx,ML+col*(colW+gap),top+row*ROWH[cn],colW,cn,o.startNo+i,w,o.isKey,o.mode);
   });
-  if(multi){
-    ctx.fillStyle='#555';ctx.textAlign='center';ctx.font='400 32px '+FONT_UI;
-    ctx.fillText('Page '+o.pageNo+' of '+o.pageCount,PW/2,PH-MB-10);
-  }
+  drawFooter(ctx,o);
   return c;
 }
 //#draw-end
+
+//#qr-start
+// Small QR code generator (byte mode, error correction L or M, versions 1-40).
+var QRGen=(function(){
+  var ECC=[
+    [-1,7,10,15,20,26,18,20,24,30,18,20,24,26,30,22,24,28,30,28,28,28,28,30,30,26,28,30,30,30,30,30,30,30,30,30,30,30,30,30,30],
+    [-1,10,16,26,18,24,16,18,22,22,26,30,22,22,24,24,28,28,26,26,26,26,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28]];
+  var BLK=[
+    [-1,1,1,1,1,1,2,2,2,2,4,4,4,4,4,6,6,6,6,7,8,8,9,9,10,12,12,12,13,14,15,16,17,18,19,19,20,21,22,24,25],
+    [-1,1,1,1,2,2,4,4,4,5,5,5,8,9,9,10,10,11,13,14,16,17,17,18,20,21,23,25,26,28,29,31,33,35,37,38,40,43,45,47,49]];
+  var FMT=[1,0]; // format bits for L, M
+  function raw(v){var r=(16*v+128)*v+64;if(v>=2){var n=Math.floor(v/7)+2;r-=(25*n-10)*n-55;if(v>=7)r-=36;}return r;}
+  function dataCw(v,e){return Math.floor(raw(v)/8)-ECC[e][v]*BLK[e][v];}
+  function gmul(x,y){var z=0;for(var i=7;i>=0;i--){z=(z<<1)^((z>>>7)*0x11D);z^=((y>>>i)&1)*x;}return z;}
+  function divisor(deg){var r=[],i,j,root=1;for(i=0;i<deg-1;i++)r.push(0);r.push(1);
+    for(i=0;i<deg;i++){for(j=0;j<r.length;j++){r[j]=gmul(r[j],root);if(j+1<r.length)r[j]^=r[j+1];}root=gmul(root,2);}return r;}
+  function remainder(data,div){var r=div.map(function(){return 0;});
+    data.forEach(function(b){var f=b^r.shift();r.push(0);div.forEach(function(c,i){r[i]^=gmul(c,f);});});return r;}
+  function utf8(s){return Array.prototype.slice.call(new TextEncoder().encode(s));}
+  function encode(text,eclName){
+    var e=eclName==='M'?1:0,bytes=utf8(text),v,i,j;
+    for(v=1;v<=40;v++){if(4+(v<10?8:16)+bytes.length*8<=dataCw(v,e)*8)break;}
+    if(v>40)throw new Error('Too much data for one QR code.');
+    var bits=[];
+    function put(val,len){for(var k=len-1;k>=0;k--)bits.push((val>>>k)&1);}
+    put(4,4);put(bytes.length,v<10?8:16);bytes.forEach(function(b){put(b,8);});
+    var cap=dataCw(v,e)*8;
+    put(0,Math.min(4,cap-bits.length));put(0,(8-bits.length%8)%8);
+    for(var pad=0xEC;bits.length<cap;pad^=0xEC^0x11)put(pad,8);
+    var data=[];for(i=0;i<bits.length;i+=8){var byte=0;for(j=0;j<8;j++)byte=(byte<<1)|bits[i+j];data.push(byte);}
+    // error correction and interleaving
+    var nb=BLK[e][v],eccLen=ECC[e][v],rawCw=Math.floor(raw(v)/8),nShort=nb-rawCw%nb,shortLen=Math.floor(rawCw/nb);
+    var div=divisor(eccLen),blocks=[],k=0;
+    for(i=0;i<nb;i++){
+      var dlen=shortLen-eccLen+(i<nShort?0:1),dat=data.slice(k,k+dlen);k+=dlen;
+      var ecc=remainder(dat,div);if(i<nShort)dat.push(0);blocks.push(dat.concat(ecc));
+    }
+    var all=[];
+    for(i=0;i<blocks[0].length;i++)for(j=0;j<nb;j++){if(i!==shortLen-eccLen||j>=nShort)all.push(blocks[j][i]);}
+    // matrix
+    var size=v*4+17,m=[],fn=[];
+    for(i=0;i<size;i++){m.push(new Array(size).fill(false));fn.push(new Array(size).fill(false));}
+    function setFn(x,y,d){m[y][x]=d;fn[y][x]=true;}
+    function bit(x,n){return ((x>>>n)&1)!==0;}
+    for(i=0;i<size;i++){setFn(6,i,i%2===0);setFn(i,6,i%2===0);}
+    function finder(cx,cy){for(var dy=-4;dy<=4;dy++)for(var dx=-4;dx<=4;dx++){var d=Math.max(Math.abs(dx),Math.abs(dy)),x=cx+dx,y=cy+dy;if(x>=0&&x<size&&y>=0&&y<size)setFn(x,y,d!==2&&d!==4);}}
+    finder(3,3);finder(size-4,3);finder(3,size-4);
+    var ap=[];
+    if(v>1){var na=Math.floor(v/7)+2,step=(v===32)?26:Math.ceil((v*4+4)/(na*2-2))*2;ap=[6];for(var pos=size-7;ap.length<na;pos-=step)ap.splice(1,0,pos);}
+    for(i=0;i<ap.length;i++)for(j=0;j<ap.length;j++){
+      if((i===0&&j===0)||(i===0&&j===ap.length-1)||(i===ap.length-1&&j===0))continue;
+      for(var dy=-2;dy<=2;dy++)for(var dx=-2;dx<=2;dx++)setFn(ap[i]+dx,ap[j]+dy,Math.max(Math.abs(dx),Math.abs(dy))!==1);
+    }
+    function formatBits(mask){
+      var d=(FMT[e]<<3)|mask,r=d,n;for(n=0;n<10;n++)r=(r<<1)^((r>>>9)*0x537);
+      var b=((d<<10)|r)^0x5412;
+      for(n=0;n<=5;n++)setFn(8,n,bit(b,n));setFn(8,7,bit(b,6));setFn(8,8,bit(b,7));setFn(7,8,bit(b,8));
+      for(n=9;n<15;n++)setFn(14-n,8,bit(b,n));
+      for(n=0;n<8;n++)setFn(size-1-n,8,bit(b,n));
+      for(n=8;n<15;n++)setFn(8,size-15+n,bit(b,n));
+      setFn(8,size-8,true);
+    }
+    formatBits(0);
+    if(v>=7){var r2=v,n2;for(n2=0;n2<12;n2++)r2=(r2<<1)^((r2>>>11)*0x1F25);var vb=(v<<12)|r2;
+      for(n2=0;n2<18;n2++){var col=bit(vb,n2),a=size-11+n2%3,b2=Math.floor(n2/3);setFn(a,b2,col);setFn(b2,a,col);}}
+    // codewords in zigzag
+    var idx=0;
+    for(var right=size-1;right>=1;right-=2){
+      if(right===6)right=5;
+      for(var vert=0;vert<size;vert++)for(j=0;j<2;j++){
+        var x=right-j,up=((right+1)&2)===0,y=up?size-1-vert:vert;
+        if(!fn[y][x]&&idx<all.length*8){m[y][x]=bit(all[idx>>>3],7-(idx&7));idx++;}
+      }
+    }
+    function mask(mk){for(var y=0;y<size;y++)for(var x=0;x<size;x++){
+      var inv;switch(mk){case 0:inv=(x+y)%2===0;break;case 1:inv=y%2===0;break;case 2:inv=x%3===0;break;case 3:inv=(x+y)%3===0;break;
+        case 4:inv=(Math.floor(x/3)+Math.floor(y/2))%2===0;break;case 5:inv=x*y%2+x*y%3===0;break;case 6:inv=(x*y%2+x*y%3)%2===0;break;default:inv=((x+y)%2+x*y%3)%2===0;}
+      if(!fn[y][x]&&inv)m[y][x]=!m[y][x];}}
+    function penalty(){
+      var res=0,x,y,run,col;
+      for(y=0;y<size;y++){run=1;for(x=1;x<size;x++){if(m[y][x]===m[y][x-1]){run++;if(run===5)res+=3;else if(run>5)res++;}else run=1;}}
+      for(x=0;x<size;x++){run=1;for(y=1;y<size;y++){if(m[y][x]===m[y-1][x]){run++;if(run===5)res+=3;else if(run>5)res++;}else run=1;}}
+      var A='10111010000',B='00001011101',line,t,k2;
+      for(y=0;y<size;y++){line='0000';for(x=0;x<size;x++)line+=m[y][x]?'1':'0';line+='0000';
+        for(k2=0;k2+11<=line.length;k2++){t=line.substr(k2,11);if(t===A||t===B)res+=40;}}
+      for(x=0;x<size;x++){line='0000';for(y=0;y<size;y++)line+=m[y][x]?'1':'0';line+='0000';
+        for(k2=0;k2+11<=line.length;k2++){t=line.substr(k2,11);if(t===A||t===B)res+=40;}}
+      var dark=0;
+      for(y=0;y<size;y++)for(x=0;x<size;x++){col=m[y][x];if(col)dark++;if(y<size-1&&x<size-1&&col===m[y][x+1]&&col===m[y+1][x]&&col===m[y+1][x+1])res+=3;}
+      res+=(Math.ceil(Math.abs(dark*20-size*size*10)/(size*size))-1)*10;
+      return res;
+    }
+    var best=0,bestP=Infinity;
+    for(var mk=0;mk<8;mk++){mask(mk);formatBits(mk);var p=penalty();if(p<bestP){bestP=p;best=mk;}mask(mk);}
+    mask(best);formatBits(best);
+    return {size:size,version:v,get:function(x,y){return m[y][x];}};
+  }
+  // SVG with a 4-module quiet zone. size is the width in mm (or any CSS length given as a string).
+  function svg(text,ecl,width){
+    var q=encode(text,ecl),n=q.size+8,d=[],x,y,s;
+    for(y=0;y<q.size;y++){x=0;while(x<q.size){if(q.get(x,y)){s=x;while(x<q.size&&q.get(x,y))x++;d.push('M'+(s+4)+' '+(y+4)+'h'+(x-s)+'v1h-'+(x-s)+'z');}else x++;}}
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+n+' '+n+'" width="'+width+'" height="'+width+'" shape-rendering="crispEdges"><rect width="'+n+'" height="'+n+'" fill="#fff"/><path d="'+d.join('')+'" fill="#000"/></svg>';
+  }
+  // Draws onto a canvas context: w = total width including the quiet zone.
+  function draw(ctx,text,ecl,x0,y0,w){
+    var q=encode(text,ecl),n=q.size+8,u=w/n,x,y;
+    ctx.fillStyle='#fff';ctx.fillRect(x0,y0,w,w);ctx.fillStyle='#000';
+    for(y=0;y<q.size;y++)for(x=0;x<q.size;x++)if(q.get(x,y))ctx.fillRect(x0+(x+4)*u-0.3,y0+(y+4)*u-0.3,u+0.6,u+0.6);
+    return q;
+  }
+  return {encode:encode,svg:svg,draw:draw};
+})();
+//#qr-end
 
 var SAMPLE=[['I','我'],['you','你'],['he','他'],['she','她'],['apple','蘋果'],['book','書'],['teacher','老師'],['student','學生'],['school','學校'],['friend','朋友']];
 var words=SAMPLE.map(function(p){return {en:p[0],zh:p[1]};});
@@ -675,10 +861,26 @@ function plan(){
   var eff=per>=1?Math.min(per,cap):cap;
   return {list:list,cn:cn,showMeta:showMeta,cap:cap,clamped:per>=1&&per>cap,pages:paginate(list,eff)};
 }
+function modeVal(){return $('mode').value==='en2zh'?'en2zh':'zh2en';}
+function clean1(x){return String(x==null?'':x).replace(/[\t\r\n]+/g,' ');}
+// Sheet ID: date, time and two letters. It changes when the questions, their order or the question type change.
+var idSig='',idVal='';
+function sheetId(list){
+  var sig=modeVal()+'|'+list.map(function(w){return w.en+'\u0001'+w.zh;}).join('\u0002');
+  if(sig!==idSig){
+    idSig=sig;
+    var d=new Date(),abc='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    idVal=d.getFullYear()+pad2(d.getMonth()+1)+pad2(d.getDate())+'-'+pad2(d.getHours())+pad2(d.getMinutes())+'-'+abc.charAt(Math.floor(Math.random()*abc.length))+abc.charAt(Math.floor(Math.random()*abc.length));
+  }
+  return idVal;
+}
 function pageOpts(P,pi,isKey,title){
-  var start=1;
-  for(var i=0;i<pi;i++)start+=P.pages[i].length;
-  return {title:title,isKey:isKey,showMeta:P.showMeta,cn:P.cn,chunk:P.pages[pi],startNo:start,total:P.list.length,pageNo:pi+1,pageCount:P.pages.length};
+  var start=1,i;
+  for(i=0;i<pi;i++)start+=P.pages[i].length;
+  var id=sheetId(P.list),chunk=P.pages[pi],mode=modeVal(),qr;
+  if(isKey)qr=['VQ1','A',id,mode,String(start),String(chunk.length),clean1(title)].join('\t')+'\n'+chunk.map(function(w){return clean1(w.en)+'\t'+clean1(w.zh);}).join('\n');
+  else qr=['VQ1','Q',id,(pi+1)+'/'+P.pages.length,start+'-'+(start+chunk.length-1)].join('\t');
+  return {title:title,isKey:isKey,showMeta:P.showMeta,cn:P.cn,chunk:chunk,startNo:start,total:P.list.length,pageNo:pi+1,pageCount:P.pages.length,mode:mode,id:id,qr:qr};
 }
 
 var activeTab='q';
@@ -779,12 +981,12 @@ function readFile(file){
 function pad2(n){return (n<10?'0':'')+n;}
 // File names start with the quiz title, then the date and time: Title_2026-10-18_08-11
 function fileBase(title,d){
-  var t=String(title||'').replace(/[\\\/:*?"<>|]+/g,' ').trim().replace(/\s+/g,'_').replace(/^[_.]+|[_.]+$/g,'').slice(0,60)||'Vocabulary_Quiz';
+  var t=String(title||'').replace(/[\\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim().replace(/^[.\s]+|[.\s]+$/g,'').slice(0,80)||'Vocabulary Quiz';
   return t+'_'+d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())+'_'+pad2(d.getHours())+'-'+pad2(d.getMinutes());
 }
 var EXPORT_SCALE=1654/PW;   // A4 at 200 dpi
 
-// Makes one PNG File per page, one page at a time so the phone never holds many large pictures.
+// Makes one JPG File per page, one page at a time so the phone never holds many large pictures.
 function makeImages(which,base){
   var P=plan(),isKey=which==='a',title=titleText(),files=[],i=0,multi=P.pages.length>1;
   var suffix=isKey?'_Answer_Key':'_Question_Sheet';
@@ -792,10 +994,10 @@ function makeImages(which,base){
     if(i>=P.pages.length)return Promise.resolve(files);
     var c=renderPage(pageOpts(P,i,isKey,title),EXPORT_SCALE);
     return new Promise(function(res,rej){
-      c.toBlob(function(b){c.width=1;c.height=1;if(b)res(b);else rej(new Error('Could not make the picture.'));},'image/png');
+      c.toBlob(function(b){c.width=1;c.height=1;if(b)res(b);else rej(new Error('Could not make the picture.'));},'image/jpeg',0.92);
     }).then(function(b){
-      var name=base+suffix+(multi?'_Page_'+(i+1)+'_of_'+P.pages.length:'')+'.png';
-      files.push(new File([b],name,{type:'image/png'}));
+      var name=base+suffix+(multi?'_Page_'+(i+1)+'_of_'+P.pages.length:'')+'.jpg';
+      files.push(new File([b],name,{type:'image/jpeg'}));
       i++;
       return next();
     });
@@ -867,17 +1069,17 @@ function savePictures(which){
 }
 
 /* ---------- email ---------- */
-var MAIL_DEFAULT={to1:'mavicchen168@gmail.com',to2:'mavicschool888@gmail.com',to3:''};
+var MAIL_DEFAULT={to1:'',to2:'',to3:''};
 var mailIds=['mailTo1','mailTo2','mailTo3'];
 function loadMail(){
   var v={};
-  try{v=JSON.parse(localStorage.getItem('vq-mail')||'null')||{};}catch(e){v={};}
+  try{v=JSON.parse(localStorage.getItem('vq-mail-v2')||'null')||{};}catch(e){v={};}
   mailIds.forEach(function(id,i){var k='to'+(i+1);$(id).value=(v[k]!==undefined)?v[k]:MAIL_DEFAULT[k];});
 }
 function saveMail(){
   var v={};
   mailIds.forEach(function(id,i){v['to'+(i+1)]=$(id).value.trim();});
-  try{localStorage.setItem('vq-mail',JSON.stringify(v));}catch(e){}
+  try{localStorage.setItem('vq-mail-v2',JSON.stringify(v));}catch(e){}
 }
 mailIds.forEach(function(id){$(id).addEventListener('input',saveMail);});
 loadMail();
@@ -939,7 +1141,59 @@ $('printQ').addEventListener('click',function(){showTab('q');savePictures('q');}
 $('printA').addEventListener('click',function(){showTab('a');savePictures('a');});
 $('tabQ').addEventListener('click',function(){showTab('q');});
 $('tabA').addEventListener('click',function(){showTab('a');});
-$('letters').addEventListener('input',function(){useItems();});
+function fillTypes(keep){
+  var sel=$('qType');
+  sel.textContent='';
+  var o=el('option',null,'(choose)');o.value='';sel.appendChild(o);
+  QUIZ_TYPES.forEach(function(q){var e=el('option',null,q[0]);e.value=q[0];sel.appendChild(e);});
+  sel.value=QUIZ_TYPES.some(function(q){return q[0]===keep;})?keep:'';
+}
+function fillLevels(keep){
+  var t=$('qType').value,sel=$('qLevel'),lv=[];
+  QUIZ_TYPES.forEach(function(q){if(q[0]===t)lv=q[1];});
+  sel.textContent='';
+  var o=el('option',null,'(choose)');o.value='';sel.appendChild(o);
+  lv.forEach(function(x){var e=el('option',null,x);e.value=x;sel.appendChild(e);});
+  $('qLevelWrap').style.display=lv.length?'flex':'none';
+  if(keep&&lv.indexOf(keep)>-1)sel.value=keep;
+}
+function autoTitle(){
+  $('title').value=makeTitle($('qType').value,$('qLevel').value,$('letters').value);
+  render();
+}
+var TYPES_KEY='vq-types-v1';
+(function(){
+  try{var raw=localStorage.getItem(TYPES_KEY);if(raw){var arr=parseTypesText(raw);if(arr.length)QUIZ_TYPES=arr;}}catch(e){}
+  fillTypes('');fillLevels();
+})();
+function applyTypes(arr){
+  var t=$('qType').value,l=$('qLevel').value;
+  QUIZ_TYPES=arr;fillTypes(t);fillLevels(l);autoTitle();
+}
+function typesNote(msg,isErr){note('typesNote',msg,isErr?'err':'');}
+$('editTypes').addEventListener('click',function(){
+  var box=$('typesBox'),open=box.style.display==='none';
+  box.style.display=open?'block':'none';
+  if(open)$('typesText').value=typesToText(QUIZ_TYPES);
+});
+$('typesSave').addEventListener('click',function(){
+  var arr=parseTypesText($('typesText').value);
+  if(!arr.length){typesNote('Add at least one test type.',true);return;}
+  applyTypes(arr);
+  try{if(typesToText(arr)===typesToText(DEFAULT_TYPES))localStorage.removeItem(TYPES_KEY);else localStorage.setItem(TYPES_KEY,typesToText(arr));}catch(e){}
+  typesNote('Saved. The lists are remembered on this phone.');
+});
+$('typesReset').addEventListener('click',function(){
+  applyTypes(DEFAULT_TYPES.map(function(q){return [q[0],q[1].slice()];}));
+  $('typesText').value=typesToText(QUIZ_TYPES);
+  try{localStorage.removeItem(TYPES_KEY);}catch(e){}
+  typesNote('The original lists are back.');
+});
+function modeInfo(){$('modeInfo').textContent=modeVal()==='en2zh'?'Quiz Grader cannot read Chinese handwriting, so grade these papers by hand.':'';}
+$('mode').addEventListener('change',function(){modeInfo();render();});
+$('qType').addEventListener('change',function(){fillLevels();autoTitle();});
+$('qLevel').addEventListener('change',autoTitle);
+$('letters').addEventListener('input',function(){autoTitle();useItems();});
 ['title','count','perPage','cols','meta'].forEach(function(id){
   $(id).addEventListener('input',function(){ if(!$('notice').classList.contains('err'))notice(''); render(); });
   $(id).addEventListener('change',render);
@@ -954,7 +1208,7 @@ if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){
   window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});
 }
 // test hook (harmless in normal use)
-window.__vq={parseXlsx:parseXlsx,parseRows:parseRows,renderPage:renderPage,plan:plan};
+window.__vq={parseXlsx:parseXlsx,parseRows:parseRows,renderPage:renderPage,plan:plan,opts:pageOpts};
 })();
 </script>
 </body>

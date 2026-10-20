@@ -1,5 +1,5 @@
 // Keeps the app files so it opens without a connection. Online, the newest files are used first.
-var CACHE = 'vocab-quiz-v3';
+var CACHE = 'vocab-quiz-v5';
 var FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 
 self.addEventListener('install', function (e) {
